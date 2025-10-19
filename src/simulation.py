@@ -1,10 +1,17 @@
 import mujoco as mj
 from mujoco.glfw import glfw
 import numpy as np
-import config
+
+WINDOW_WIDTH = 1600
+WINDOW_HEIGHT = 900
+WINDOW_TITLE = "Mochi Simulation"
+PIP_WIDTH = 320
+PIP_HEIGHT = 240
+PIP_MARGIN = 20
 
 
 class Simulation:
+
     def __init__(self, model, data, controller):
         self.model = model
         self.data = data
@@ -15,7 +22,7 @@ class Simulation:
         # --- GLFW and MuJoCo Visualization Init ---
         glfw.init()
         self.window = glfw.create_window(
-            config.WINDOW_WIDTH, config.WINDOW_HEIGHT, config.WINDOW_TITLE, None, None
+            WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, None, None
         )
         glfw.make_context_current(self.window)
         glfw.swap_interval(1)
@@ -136,9 +143,9 @@ class Simulation:
         mj.mjr_render(main_viewport, self.scene_main, self.context)
 
         # 2. Render PiP Scene
-        pip_x = viewport_width - config.PIP_WIDTH - config.PIP_MARGIN
-        pip_y = config.PIP_MARGIN
-        pip_viewport = mj.MjrRect(pip_x, pip_y, config.PIP_WIDTH, config.PIP_HEIGHT)
+        pip_x = viewport_width - PIP_WIDTH - PIP_MARGIN
+        pip_y = PIP_MARGIN
+        pip_viewport = mj.MjrRect(pip_x, pip_y, PIP_WIDTH, PIP_HEIGHT)
 
         mj.mjv_updateScene(
             self.model,
@@ -167,7 +174,7 @@ class Simulation:
         """Starts the main simulation loop."""
         while not glfw.window_should_close(self.window):
             time_prev = self.data.time
-            while self.data.time - time_prev < config.SIM_REFRESH_RATE:
+            while self.data.time - time_prev < 1.0 / 60.0:
                 mj.mj_step(self.model, self.data)
 
             # Render the frame

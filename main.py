@@ -1,12 +1,13 @@
 import mujoco as mj
-import config
 from src.simulation import Simulation
 from src.controller import Controller
+
+MODEL_XML_PATH = "models/mochi.xml"
 
 
 def main():
     # 1. Load model and data
-    model = mj.MjModel.from_xml_path(config.MODEL_XML_PATH)
+    model = mj.MjModel.from_xml_path(MODEL_XML_PATH)
     data = mj.MjData(model)
 
     # 2. Create the controller
