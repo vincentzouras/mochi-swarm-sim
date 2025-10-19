@@ -11,9 +11,6 @@
     <material name="motors_mat" rgba="0.8 0.2 0.2 1" />
     <mesh name="frame_mesh" file="frame.stl" />
     <mesh name="motors_mesh" file="motors.stl" />
-    <mesh name="goal_circle" file="circle.stl" />
-    <mesh name="goal_square" file="square.stl" />
-    <mesh name="goal_triangle" file="triangle.stl" />
   </asset>
 
   <worldbody>
