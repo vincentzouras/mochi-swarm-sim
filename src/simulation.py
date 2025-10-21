@@ -2,12 +2,10 @@ import mujoco as mj
 from mujoco.glfw import glfw
 import numpy as np
 
-WINDOW_WIDTH = 1600
-WINDOW_HEIGHT = 900
-WINDOW_TITLE = "Mochi Simulation"
 PIP_WIDTH = 320
 PIP_HEIGHT = 240
 PIP_MARGIN = 20
+CAMERA = "nicla_vision"
 
 
 class Simulation:
@@ -18,17 +16,23 @@ class Simulation:
         self.controller = controller
         self.cam = mj.MjvCamera()
         self.opt = mj.MjvOption()
+        self.camera_follow = True
 
         # --- GLFW and MuJoCo Visualization Init ---
         glfw.init()
+        glfw.window_hint(glfw.MAXIMIZED, glfw.TRUE)
+        monitor = glfw.get_primary_monitor()
+        mode = glfw.get_video_mode(monitor)
         self.window = glfw.create_window(
-            WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, None, None
+            mode.size.width, mode.size.height, "Mochi Simulation", None, None
         )
         glfw.make_context_current(self.window)
         glfw.swap_interval(1)
 
         mj.mjv_defaultCamera(self.cam)
         mj.mjv_defaultOption(self.opt)
+        self.cam.distance = 20.0
+
         self.scene_main = mj.MjvScene(self.model, maxgeom=10000)
         self.scene_pip = mj.MjvScene(self.model, maxgeom=10000)
         self.context = mj.MjrContext(self.model, mj.mjtFontScale.mjFONTSCALE_150.value)
@@ -36,7 +40,7 @@ class Simulation:
         # --- PiP Camera Setup ---
         self.pip_cam = mj.MjvCamera()
         self.pip_cam.type = mj.mjtCamera.mjCAMERA_FIXED
-        self.pip_cam.fixedcamid = self.model.camera("nicla_vision").id
+        self.pip_cam.fixedcamid = self.model.camera(CAMERA).id
 
         # --- Input State Variables ---
         self.button_left = False
@@ -62,6 +66,7 @@ class Simulation:
         """Handles keyboard input."""
         # Reset simulation
         if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
+            self.camera_follow = True
             mj.mj_resetData(self.model, self.data)
             mj.mj_forward(self.model, self.data)
             return
@@ -98,6 +103,7 @@ class Simulation:
         )
 
         if self.button_right:
+            self.camera_follow = False
             action = (
                 mj.mjtMouse.mjMOUSE_MOVE_H if mod_shift else mj.mjtMouse.mjMOUSE_MOVE_V
             )
@@ -127,6 +133,12 @@ class Simulation:
 
     def _render_frame(self):
         """Renders one frame of the simulation, including PiP and overlays."""
+
+        if self.camera_follow:
+            body_id = self.model.body("blimp").id
+            pos = self.data.xpos[body_id]
+            self.cam.lookat[:] = pos
+
         viewport_width, viewport_height = glfw.get_framebuffer_size(self.window)
         main_viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
 
@@ -184,4 +196,7 @@ class Simulation:
             glfw.swap_buffers(self.window)
             glfw.poll_events()
 
+        self.stop()
+
+    def stop(self):
         glfw.terminate()
