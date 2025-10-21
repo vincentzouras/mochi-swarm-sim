@@ -1,6 +1,14 @@
+from enum import Enum, auto
 import numpy as np
 from src import preferences
 from state.robot_state import Behavior
+
+
+class Control(Enum):
+    FX = auto()
+    FZ = auto()
+    TX = auto()
+    TZ = auto()
 
 
 # Porting the C++ PD terms and state
@@ -44,7 +52,7 @@ class Differential:
         """
         if controls_in[Behavior.READY.value] == 0:
             # Return [right_thrust, left_thrust, servo_angle]
-            return np.array([0.0, 0.0, 0.0])  # Motors off, servos up
+            return np.array([0.0, 0.0, np.pi / 2])  # Motors off, servos up
 
         # 1. Apply Feedback (PID controllers)
         feedback_controls = self._add_feedback(sensors, controls_in)
@@ -60,9 +68,9 @@ class Differential:
         Converts desired setpoints (e.g., height, yaw) into forces and torques.
         """
         # Get high-level commands
-        fx = controls_in[Behavior.FX_FORWARD.value]
+        fx = controls_in[Behavior.FX_FORWARD.value]  # we dont add feedback just need it
         fz_target = controls_in[Behavior.FZ_HEIGHT.value]
-        tx = controls_in[Behavior.TX_ROLL.value]
+        tx = controls_in[Behavior.TX_ROLL.value]  # we dont add feedback just need it
         tz_target = controls_in[Behavior.TZ_YAW.value]
 
         # Get sensor values
@@ -72,7 +80,6 @@ class Differential:
         current_yaw_rate = sensors.get("gyro_z", 0.0)
 
         # --- Z (Altitude) Feedback ---
-        fz_out = 0.0
         if self.zEn:
             # error calculation
             e_z = fz_target - current_height
@@ -89,7 +96,6 @@ class Differential:
 
         # --- Yaw Feedback (Cascading PID) ---
         #  cascading so we have separate PID for yaw and yaw rate
-        tz_out = 0.0
         if self.yawEn:
             # error calculation
             e_yaw = tz_target - current_yaw
@@ -125,38 +131,46 @@ class Differential:
             )
 
         # Return a dictionary of the final forces and torques
-        return {"fx": fx, "fz": fz_out, "tx": tx, "tz": tz_out}
+        return {Control.FX: fx, Control.FZ: fz_out, Control.TX: tx, Control.TZ: tz_out}
 
     def _get_outputs(self, sensors: dict, feedback_controls: dict) -> np.ndarray:
         """
-        This is the differential drive mixer (like Differential::getOutputs).
+        Differential drive mixer (Differential::getOutputs).
         It converts forces (fx, fz) and torque (tz) into
         motor thrusts (f1, f2) and servo angle (theta).
         """
-        fx = np.clip(feedback_controls["fx"], -1.0, 1.0)
-        fz = np.clip(feedback_controls["fz"], -1.0, 1.0)
-        tauz = np.clip(feedback_controls["tz"], -0.1, 0.1)
+        fx_target = np.clip(feedback_controls[Control.FX], -1.0, 1.0)  # forward force
+        fz_target = np.clip(feedback_controls[Control.FZ], -1.0, 1.0)  # upward force
+        tz_target = np.clip(feedback_controls[Control.TZ], -0.1, 0.1)  # yaw torque
 
-        l = self.lx
+        l = self.lx  # distance from center to motor (blimp radius)
 
-        # --- Start porting logic from Differential.cpp::getOutputs ---
-        F_mag_sq = fx**2 + fz**2
-        theta = np.atan2(fz, fx)
+        F_mag_sq = fx_target**2 + fz_target**2
+        theta = np.atan2(fz_target, fx_target)  # angle of servo
 
+        # omitting exponential moving average, because not used in real setup
+
+        # thrusts for left and right motors
         f1 = 0.0
         f2 = 0.0
 
         if F_mag_sq > 0:
-            # Handle edge cases from C++
-            if abs(fx) < 1e-6:
-                fx = 10 * abs(tauz)
-                theta = np.atan2(fz, abs(tauz * 10))
+            # if basically no forward force, assign force so we can still calculate angle
+            if abs(fx_target) < 0.00001:
+                fx_target = 10 * abs(tz_target)
+                theta = np.atan2(fz_target, abs(tz_target * 10))
 
-            if fx < 0:
+            # if rotating in place with very small forward force
+            if abs(tz_target / fx_target) > 0.1:
+                fx_target = 0.2  # set min forward force
+                scaled_tz_target = tz_target * abs(fx_target)
+                tz_target = scaled_tz_target
+                theta = np.atan2(fz_target, fx_target)
+
+            if fx_target < 0:
                 theta = np.pi - 0.01
 
-            # ... (rest of mixer logic) ...
-            term1 = tauz / (l * np.cos(theta))
+            term1 = tz_target / (l * np.cos(theta))
             term2 = np.sqrt(F_mag_sq)
             f1 = 0.5 * (term1 + term2)
             f2 = 0.5 * (-term1 + term2)
