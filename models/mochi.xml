@@ -116,12 +116,12 @@
         </body>
 
         <body name="motors">
-          <joint name="motors_axle" type="hinge" axis="0 1 0" range="-180 180" />
+          <joint name="motors_axle" type="hinge" axis="0 -1 0" range="-180 180" />
           <!-- rotate so X axis is nose to tail -->
-          <geom type="mesh" mesh="motors_mesh" material="motors_mat" mass="0.05" euler="0 0 90" />
+          <geom type="mesh" mesh="motors_mesh" material="motors_mat" mass="0.05" euler="0 90 90" />
 
-          <site name="motor_right_site" pos="0 -0.21 0" size="0.01" />
           <site name="motor_left_site" pos="0 0.21 0" size="0.01" />
+          <site name="motor_right_site" pos="0 -0.21 0" size="0.01" />
         </body>
 
         <camera name="nicla_vision" pos="0 0 -.07" euler="90 270 0" />
@@ -139,9 +139,9 @@
     <position name="motors_servo" joint="motors_axle" kp="0.05" dampratio="1"
       ctrlrange="-3.14159 3.14159" />
 
-    <general name="motor_right_thrust" site="motor_right_site" gear="0 0 1 0 0 0"
+    <general name="motor_left_thrust" site="motor_left_site" gear="1 0 0 0 0 0"
       forcerange="0 0.3924" ctrlrange="0 1" /> <!-- 40g of force in Newtons -->
-    <general name="motor_left_thrust" site="motor_left_site" gear="0 0 1 0 0 0"
+    <general name="motor_right_thrust" site="motor_right_site" gear="1 0 0 0 0 0"
       forcerange="0 0.3924" ctrlrange="0 1" /> <!-- 40g of force in Newtons -->
   </actuator>
 
