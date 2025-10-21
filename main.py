@@ -1,3 +1,5 @@
+# type: ignore[reportAttributeAccessIssue]
+
 import mujoco as mj
 from src.simulation import Simulation
 from src.controller import Controller

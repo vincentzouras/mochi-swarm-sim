@@ -2,10 +2,12 @@ import mujoco as mj
 from mujoco.glfw import glfw
 import numpy as np
 
+
 PIP_WIDTH = 320
 PIP_HEIGHT = 240
 PIP_MARGIN = 20
 CAMERA = "nicla_vision"
+ASSEMBLY = "assembly"
 
 
 class Simulation:
@@ -172,9 +174,8 @@ class Simulation:
         )
         mj.mjr_render(pip_viewport, self.scene_pip, self.context)
 
-        # 3. Render Sensor Overlay
-        # Get formatted sensor data
-        sensor_data_formatted = self.controller.get_sensor_readings()
+        # 3. Render Sensor Display
+        sensor_data_formatted = self.controller.get_sensor_display()
         mj.mjr_overlay(
             mj.mjtFont.mjFONT_NORMAL,
             mj.mjtGridPos.mjGRID_TOPLEFT,
@@ -183,6 +184,39 @@ class Simulation:
             None,
             self.context,
         )
+
+        # 4. Render True Values Display
+        true_values_formatted = self._get_true_display()
+        mj.mjr_overlay(
+            mj.mjtFont.mjFONT_NORMAL,
+            mj.mjtGridPos.mjGRID_BOTTOMLEFT,
+            main_viewport,
+            true_values_formatted,
+            None,
+            self.context,
+        )
+
+    def _get_true_display(self):
+        """Returns true position and orientation of the robot."""
+        body_id = self.model.body(ASSEMBLY).id
+        position = self.data.xpos[body_id].copy()
+        orientation = self.data.xquat[body_id].copy()  # Quaternion (w, x, y, z)
+        return (
+            f"{position[0]:8.3f}, {position[1]:8.3f}, {position[2]:8.3f}",
+            f"{orientation[0]:8.3f}, {orientation[1]:8.3f}, {orientation[2]:8.3f}, {orientation[3]:8.3f}",
+        )
+
+    """
+        f"Status: {"ARMED" if target_controls["ready"] else "DISARMED"} (Press ENTER)\n\n"
+        f"Altitude Target: {target_controls['altitude']:.2f} m (Space/Shift)\n"
+        f"Altitude Actual: {current_pos_z:.2f} m\n\n"
+        f"Yaw Target: {np.rad2deg(target_controls['yaw']):.1f} deg (A/D)\n"
+        f"Yaw Actual: {np.rad2deg(euler_rad_display[2]):.1f} deg\n\n"
+        f"Fwd Vel Target: {target_controls['forward_vel']:.2f} (W/S)\n\n"
+        f"Motor L Thrust: {data.ctrl[motor_left_thrust_id]:.2f}\n"
+        f"Motor R Thrust: {data.ctrl[motor_right_thrust_id]:.2f}\n"
+        f"Servo Angle: {np.rad2deg(data.ctrl[motors_servo_id]):.1f} deg"
+    """
 
     def run(self):
         """Starts the main simulation loop."""

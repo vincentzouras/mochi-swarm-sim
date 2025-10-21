@@ -89,7 +89,7 @@ class Controller:
             data.actuator(THRUST_RIGHT).ctrl = 0.0
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
 
-    def get_sensor_readings(self):
+    def get_sensor_display(self):
         """
         Called by the simulation's render loop to get formatted sensor data.
         """
@@ -108,3 +108,24 @@ class Controller:
             f"Ultra: {ultrasonic_data:8.3f} m\n"
             f"Baro: {barometer_data:8.3f} m"
         )
+
+    def sense(self):
+        """
+        Returns a dictionary of current sensor readings.
+        """
+        sensors = {}
+        accel_data = self.data.sensor(ACCELEROMETER).data.copy()
+        accel_data[2] -= 9.81  # remove gravity
+        sensors["accelerometer"] = accel_data
+
+        gyro_data = self.data.sensor(GYRO).data.copy()
+        sensors["gyro"] = gyro_data
+
+        ultrasonic_data = self.data.sensor(ULTRASONIC).data.copy()[0]
+        sensors["ultrasonic"] = ultrasonic_data
+
+        pos_data = self.data.sensor(BAROMETER).data.copy()
+        barometer_data = pos_data[2]
+        sensors["barometer"] = barometer_data
+
+        return sensors
