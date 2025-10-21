@@ -32,6 +32,8 @@ class Simulation:
         mj.mjv_defaultCamera(self.cam)
         mj.mjv_defaultOption(self.opt)
         self.cam.distance = 20.0
+        self.cam.azimuth = 60
+        self.cam.elevation = -20
 
         self.scene_main = mj.MjvScene(self.model, maxgeom=10000)
         self.scene_pip = mj.MjvScene(self.model, maxgeom=10000)
@@ -135,7 +137,7 @@ class Simulation:
         """Renders one frame of the simulation, including PiP and overlays."""
 
         if self.camera_follow:
-            body_id = self.model.body("blimp").id
+            body_id = self.model.body("assembly").id
             pos = self.data.xpos[body_id]
             self.cam.lookat[:] = pos
 

@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import mujoco as mj
 import numpy as np
 from mujoco.glfw import glfw
@@ -13,6 +14,25 @@ BAROMETER = "barometer"
 AXLE = "motors_axle"
 
 
+class Action(Enum):
+    FORWARD = auto()
+    BACKWARD = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    UP = auto()
+    DOWN = auto()
+
+
+KEY_BINDINGS = {
+    glfw.KEY_W: Action.FORWARD,
+    glfw.KEY_S: Action.BACKWARD,
+    glfw.KEY_A: Action.LEFT,
+    glfw.KEY_D: Action.RIGHT,
+    glfw.KEY_SPACE: Action.UP,
+    glfw.KEY_LEFT_SHIFT: Action.DOWN,
+}
+
+
 class Controller:
     """
     Handles all flight logic and sensor data parsing.
@@ -21,46 +41,28 @@ class Controller:
     def __init__(self, model, data):
         self.model = model
         self.data = data
-        self.key_states = {
-            "space": False,
-            "shift": False,
-            "w": False,
-            "s": False,
-            "a": False,
-            "d": False,
-        }
+        self.action_states = {action: False for action in Action}
 
     def update_key_state(self, key, action):
         """
         Called by the simulation's keyboard callback to update our internal state.
         """
         is_pressed = action != glfw.RELEASE
-
-        if key == glfw.KEY_SPACE:
-            self.key_states["space"] = is_pressed
-        elif key == glfw.KEY_LEFT_SHIFT:
-            self.key_states["shift"] = is_pressed
-        elif key == glfw.KEY_W:
-            self.key_states["w"] = is_pressed
-        elif key == glfw.KEY_S:
-            self.key_states["s"] = is_pressed
-        elif key == glfw.KEY_A:
-            self.key_states["a"] = is_pressed
-        elif key == glfw.KEY_D:
-            self.key_states["d"] = is_pressed
+        if key in KEY_BINDINGS:
+            self.action_states[KEY_BINDINGS[key]] = is_pressed
 
     def control_step(self, model, data):
         """
         This is the main MuJoCo control callback.
-        It reads internal state (self.key_states) and sets controls.
+        It reads internal state (self.action_states) and sets controls.
         """
         data.ctrl[:] = 0  # reset controls
 
-        if self.key_states["space"]:
+        if self.action_states[Action.UP]:
             data.actuator(SERVO).ctrl = 0.0
             data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.key_states["shift"]:
+        elif self.action_states[Action.DOWN]:
             current_angle = data.joint(AXLE).qpos[0]
             target_angle = (
                 np.pi
@@ -70,19 +72,19 @@ class Controller:
             data.actuator(SERVO).ctrl = target_angle
             data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.key_states["w"]:
+        elif self.action_states[Action.FORWARD]:
             data.actuator(SERVO).ctrl = np.pi / 2
             data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.key_states["s"]:
+        elif self.action_states[Action.BACKWARD]:
             data.actuator(SERVO).ctrl = -np.pi / 2
             data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.key_states["a"]:
+        elif self.action_states[Action.LEFT]:
             data.actuator(SERVO).ctrl = np.pi / 2
             data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
             data.actuator(THRUST_LEFT).ctrl = 0.0
-        elif self.key_states["d"]:
+        elif self.action_states[Action.RIGHT]:
             data.actuator(SERVO).ctrl = np.pi / 2
             data.actuator(THRUST_RIGHT).ctrl = 0.0
             data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
