@@ -1,5 +1,5 @@
 import numpy as np
-from robot_state import RobotState
+from .robot_state import RobotState
 
 
 class RobotStateMachine:
@@ -10,12 +10,12 @@ class RobotStateMachine:
     def __init__(self, initial_state: RobotState):
         self.current_state = initial_state
 
-    def update(self, sensors: dict, action_states: dict) -> np.ndarray:
+    def update(self, sensors: np.ndarray, action_states: dict) -> np.ndarray:
         """
         Calls the current state's update and handles transitions.
 
         Args:
-            sensors: A dictionary of current sensor readings.
+            sensors: A numpy array of current sensor readings.
             action_states: A dictionary of the current action states.
 
         Returns:

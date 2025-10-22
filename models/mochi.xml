@@ -146,7 +146,8 @@
   <sensor>
     <rangefinder name="ultrasonic" site="ultrasonic_site" />
     <framepos name="imu_pos" objtype="site" objname="imu_site" />
-    <framelinvel name="imu_vel" objtype="site" objname="imu_site" />
+    <framelinvel name="imu_lin_vel" objtype="site" objname="imu_site" />
+    <frameangvel name="imu_ang_vel" objtype="site" objname="imu_site" />
     <framequat name="imu_quat" objtype="site" objname="imu_site" />
   </sensor>
 </mujoco>

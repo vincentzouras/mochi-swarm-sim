@@ -2,6 +2,8 @@ import mujoco as mj
 from mujoco.glfw import glfw
 import numpy as np
 
+from .definitions import State
+
 
 PIP_WIDTH = 320
 PIP_HEIGHT = 240
@@ -175,35 +177,17 @@ class Simulation:
         mj.mjr_render(pip_viewport, self.scene_pip, self.context)
 
         # 3. Render Sensor Display
-        sensor_data_formatted = self.controller.get_sensor_display()
+        sensors = self.controller.senses
+        labels = [name.lower() for name in State.__members__ if name != "NUM_STATES"]
+        sensors_formatted = "\n".join([f"{val:8.3f}" for val in sensors])
+        sensors_labels = "\n".join(labels)
         mj.mjr_overlay(
             mj.mjtFont.mjFONT_NORMAL,
             mj.mjtGridPos.mjGRID_TOPLEFT,
             main_viewport,
-            sensor_data_formatted,
-            None,
+            sensors_formatted,
+            sensors_labels,
             self.context,
-        )
-
-        # 4. Render True Values Display
-        true_values_formatted = self._get_true_display()
-        mj.mjr_overlay(
-            mj.mjtFont.mjFONT_NORMAL,
-            mj.mjtGridPos.mjGRID_BOTTOMLEFT,
-            main_viewport,
-            true_values_formatted,
-            None,
-            self.context,
-        )
-
-    def _get_true_display(self):
-        """Returns true position and orientation of the robot."""
-        body_id = self.model.body(ASSEMBLY).id
-        position = self.data.xpos[body_id].copy()
-        orientation = self.data.xquat[body_id].copy()  # Quaternion (w, x, y, z)
-        return (
-            f"{position[0]:8.3f}, {position[1]:8.3f}, {position[2]:8.3f}",
-            f"{orientation[0]:8.3f}, {orientation[1]:8.3f}, {orientation[2]:8.3f}, {orientation[3]:8.3f}",
         )
 
     """
@@ -216,6 +200,11 @@ class Simulation:
         f"Motor L Thrust: {data.ctrl[motor_left_thrust_id]:.2f}\n"
         f"Motor R Thrust: {data.ctrl[motor_right_thrust_id]:.2f}\n"
         f"Servo Angle: {np.rad2deg(data.ctrl[motors_servo_id]):.1f} deg"
+
+        f"Acel: {accel_data[0]:8.3f}, {accel_data[1]:8.3f}, {accel_data[2]:8.3f} m/s^2\n"
+        f"Gyro: {gyro_data[0]:8.3f}, {gyro_data[1]:8.3f}, {gyro_data[2]:8.3f} rad/s\n"
+        f"Ultra: {ultrasonic_data:8.3f} m\n"
+        f"Baro: {barometer_data:8.3f} m"
     """
 
     def run(self):

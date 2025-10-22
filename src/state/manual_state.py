@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 from .robot_state import RobotState, Behavior
-from src.controller import Action
+from src.definitions import Action
 
 
 class ManualState(RobotState):
@@ -12,7 +12,7 @@ class ManualState(RobotState):
         self.t_thrust = 0.2  # Turning thrust command
 
     def update(
-        self, sensors: dict, action_states: dict
+        self, sensors: np.ndarray, action_states: dict
     ) -> Tuple[np.ndarray, "RobotState"]:
 
         # equivalent to 'behave.params' in DiffController.ino

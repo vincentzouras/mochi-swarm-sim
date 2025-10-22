@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from enum import Enum, auto
+from enum import IntEnum, auto
 from typing import Tuple
 import numpy as np
 
 
-class Behavior(Enum):
-    READY = auto()
+class Behavior(IntEnum):
+    READY = 0
     FX_FORWARD = auto()
     FZ_HEIGHT = auto()
     TX_ROLL = auto()
@@ -17,13 +17,13 @@ class RobotState(ABC):
 
     @abstractmethod
     def update(
-        self, sensors: dict, action_states: dict
+        self, sensors: np.ndarray, action_states: dict
     ) -> Tuple[np.ndarray, "RobotState"]:
         """
         Updates the state logic.
 
         Args:
-            sensors: A dictionary of current sensor readings.
+            sensors: A numpy array of current sensor readings.
             action_states: A dictionary of the current action states.
 
         Returns:

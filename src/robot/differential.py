@@ -1,10 +1,11 @@
-from enum import Enum, auto
+from enum import IntEnum, auto
 import numpy as np
+from src.definitions import State
 from src import preferences
-from state.robot_state import Behavior
+from src.state.robot_state import Behavior
 
 
-class Control(Enum):
+class Control(IntEnum):
     FX = auto()
     FZ = auto()
     TX = auto()
@@ -45,12 +46,12 @@ class Differential:
         self.lx = preferences.LX  # Blimp radius
         self.dt = preferences.DT  # Simulation time step, adjust as needed
 
-    def control(self, sensors: dict, controls_in: np.ndarray) -> np.ndarray:
+    def control(self, sensors: np.ndarray, controls_in: np.ndarray) -> np.ndarray:
         """
         (Differential::control)
         Takes high-level commands and returns low-level actuator outputs.
         """
-        if controls_in[Behavior.READY.value] == 0:
+        if controls_in[Behavior.READY] == 0:
             # Return [right_thrust, left_thrust, servo_angle]
             return np.array([0.0, 0.0, np.pi / 2])  # Motors off, servos up
 
@@ -58,31 +59,25 @@ class Differential:
         feedback_controls = self._add_feedback(sensors, controls_in)
 
         # 2. Calculate Actuator Outputs (Mixer)
-        actuator_outputs = self._get_outputs(sensors, feedback_controls)
+        actuator_outputs = self._get_outputs(feedback_controls)
 
         return actuator_outputs
 
-    def _add_feedback(self, sensors: dict, controls_in: np.ndarray) -> dict:
+    def _add_feedback(self, sensors: np.ndarray, controls_in: np.ndarray) -> dict:
         """
         (Differential::addFeedback).
         Converts desired setpoints (e.g., height, yaw) into forces and torques.
         """
         # Get high-level commands
-        fx = controls_in[Behavior.FX_FORWARD.value]  # we dont add feedback just need it
-        fz_target = controls_in[Behavior.FZ_HEIGHT.value]
-        tx = controls_in[Behavior.TX_ROLL.value]  # we dont add feedback just need it
-        tz_target = controls_in[Behavior.TZ_YAW.value]
-
-        # Get sensor values
-        current_height = sensors.get("baro_z", 0.0)  # FIXME: getting sensors
-        current_z_vel = sensors.get("baro_z_vel", 0.0)  # You'll need to compute this
-        current_yaw = sensors.get("yaw", 0.0)
-        current_yaw_rate = sensors.get("gyro_z", 0.0)
+        fx = controls_in[Behavior.FX_FORWARD]  # we dont add feedback just need it
+        fz_target = controls_in[Behavior.FZ_HEIGHT]
+        tx = controls_in[Behavior.TX_ROLL]  # we dont add feedback just need it
+        tz_target = controls_in[Behavior.TZ_YAW]
 
         # --- Z (Altitude) Feedback ---
         if self.zEn:
             # error calculation
-            e_z = fz_target - current_height
+            e_z = fz_target - sensors[State.Z_ALTITUDE]
 
             # integral update
             # integrate error over time, multiply by timestep, and apply integral gain
@@ -92,13 +87,17 @@ class Differential:
 
             # PID output calculation
             #              P                        D                      I
-            fz_out = (e_z * self.kpz) - (current_z_vel * self.kdz) + self.z_integral
+            fz_out = (
+                (e_z * self.kpz)
+                - (sensors[State.Z_ALTITUDE_VEL] * self.kdz)
+                + self.z_integral
+            )
 
         # --- Yaw Feedback (Cascading PID) ---
         #  cascading so we have separate PID for yaw and yaw rate
         if self.yawEn:
             # error calculation
-            e_yaw = tz_target - current_yaw
+            e_yaw = tz_target - sensors[State.TZ_YAW]
             # Normalize yaw error (wraps error to range [-pi, pi])
             e_yaw = np.atan2(np.sin(e_yaw), np.cos(e_yaw))
             # clamp to prevent windup
@@ -116,7 +115,7 @@ class Differential:
             kpyaw_max_increase = 0.04  # TODO: could make preference
             # adjust P term dynamically based on forward speed
             dynamic_kpyaw = self.kpyaw + scaling_factor * kpyaw_max_increase
-            e_yawrate = yaw_desired_rate * dynamic_kpyaw - current_yaw_rate
+            e_yawrate = yaw_desired_rate * dynamic_kpyaw - sensors[State.TZ_YAW_RATE]
 
             kdyaw_max_increase = 0.04  # TODO: could make preference
             # adjust D term dynamically based on forward speed
@@ -126,14 +125,14 @@ class Differential:
             tz_out = (
                 yaw_desired_rate * self.kppyaw
                 + e_yawrate * dynamic_kdyaw
-                - current_yaw_rate * self.kddyaw
+                - sensors[State.TZ_YAW_RATE] * self.kddyaw
                 + self.yawrate_integral  # this is zero, not used in real setup for differential
             )
 
         # Return a dictionary of the final forces and torques
         return {Control.FX: fx, Control.FZ: fz_out, Control.TX: tx, Control.TZ: tz_out}
 
-    def _get_outputs(self, sensors: dict, feedback_controls: dict) -> np.ndarray:
+    def _get_outputs(self, feedback_controls: dict) -> np.ndarray:
         """
         Differential drive mixer (Differential::getOutputs).
         It converts forces (fx, fz) and torque (tz) into

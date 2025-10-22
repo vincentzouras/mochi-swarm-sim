@@ -1,26 +1,20 @@
-from enum import Enum, auto
-import mujoco as mj
 import numpy as np
 from mujoco.glfw import glfw
-
-MAX_THRUST = 1.0
-SERVO = "motors_servo"
-THRUST_RIGHT = "motor_right_thrust"
-THRUST_LEFT = "motor_left_thrust"
-ACCELEROMETER = "accelerometer"
-ULTRASONIC = "ultrasonic"
-GYRO = "gyro"
-BAROMETER = "barometer"
-AXLE = "motors_axle"
-
-
-class Action(Enum):
-    FORWARD = auto()
-    BACKWARD = auto()
-    LEFT = auto()
-    RIGHT = auto()
-    UP = auto()
-    DOWN = auto()
+from .state.robot_state_machine import RobotStateMachine
+from .state.manual_state import ManualState
+from .robot.differential import Differential
+from scipy.spatial.transform import Rotation as R
+from .definitions import (
+    Action,
+    State,
+    SERVO,
+    THRUST_RIGHT,
+    THRUST_LEFT,
+    IMU_POS,
+    IMU_LIN_VEL,
+    IMU_ANG_VEL,
+    IMU_QUAT,
+)
 
 
 KEY_BINDINGS = {
@@ -30,6 +24,7 @@ KEY_BINDINGS = {
     glfw.KEY_D: Action.RIGHT,
     glfw.KEY_SPACE: Action.UP,
     glfw.KEY_LEFT_SHIFT: Action.DOWN,
+    glfw.KEY_ENTER: Action.ARMED,
 }
 
 
@@ -42,6 +37,9 @@ class Controller:
         self.model = model
         self.data = data
         self.action_states = {action: False for action in Action}
+        self.state_machine = RobotStateMachine(ManualState())
+        self.robot = Differential()
+        self.senses = np.zeros(State.NUM_STATES)
 
     def update_key_state(self, key, action):
         """
@@ -49,83 +47,52 @@ class Controller:
         """
         is_pressed = action != glfw.RELEASE
         if key in KEY_BINDINGS:
-            self.action_states[KEY_BINDINGS[key]] = is_pressed
+            mapped_action = KEY_BINDINGS[key]
+            if mapped_action == Action.ARMED and is_pressed:
+                self.action_states[Action.ARMED] = not self.action_states[Action.ARMED]
+            else:
+                self.action_states[mapped_action] = is_pressed
 
     def control_step(self, model, data):
         """
         This is the main MuJoCo control callback.
-        It reads internal state (self.action_states) and sets controls.
+        Coordinates state machine and robot controller
         """
-        data.ctrl[:] = 0  # reset controls
 
-        if self.action_states[Action.UP]:
-            data.actuator(SERVO).ctrl = 0.0
-            data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
-            data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.action_states[Action.DOWN]:
-            current_angle = data.joint(AXLE).qpos[0]
-            target_angle = (
-                np.pi
-                if abs(current_angle - np.pi) < abs(current_angle + np.pi)
-                else -np.pi
-            )
-            data.actuator(SERVO).ctrl = target_angle
-            data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
-            data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.action_states[Action.FORWARD]:
-            data.actuator(SERVO).ctrl = np.pi / 2
-            data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
-            data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.action_states[Action.BACKWARD]:
-            data.actuator(SERVO).ctrl = -np.pi / 2
-            data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
-            data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
-        elif self.action_states[Action.LEFT]:
-            data.actuator(SERVO).ctrl = np.pi / 2
-            data.actuator(THRUST_RIGHT).ctrl = MAX_THRUST
-            data.actuator(THRUST_LEFT).ctrl = 0.0
-        elif self.action_states[Action.RIGHT]:
-            data.actuator(SERVO).ctrl = np.pi / 2
-            data.actuator(THRUST_RIGHT).ctrl = 0.0
-            data.actuator(THRUST_LEFT).ctrl = MAX_THRUST
+        # --- Sense ---
+        self._sense()
 
-    def get_sensor_display(self):
-        """
-        Called by the simulation's render loop to get formatted sensor data.
-        """
-        accel_data = self.data.sensor(ACCELEROMETER).data.copy()
-        # self.data.sensordata[self.accel_start : self.accel_end].copy()
-        accel_data[2] -= 9.81  # remove gravity
+        # --- State Machine Update ---
+        behavior_params = self.state_machine.update(self.senses, self.action_states)
 
-        gyro_data = self.data.sensor(GYRO).data.copy()
-        ultrasonic_data = self.data.sensor(ULTRASONIC).data.copy()[0]
-        pos_data = self.data.sensor(BAROMETER).data.copy()
-        barometer_data = pos_data[2]
+        # --- Pass behaviors to flight controller to get actuator commands ---
+        actuator_commands = self.robot.control(self.senses, behavior_params)
 
-        return (
-            f"Acel: {accel_data[0]:8.3f}, {accel_data[1]:8.3f}, {accel_data[2]:8.3f} m/s^2\n"
-            f"Gyro: {gyro_data[0]:8.3f}, {gyro_data[1]:8.3f}, {gyro_data[2]:8.3f} rad/s\n"
-            f"Ultra: {ultrasonic_data:8.3f} m\n"
-            f"Baro: {barometer_data:8.3f} m"
-        )
+        # --- Apply actuator commands to simulation ---
+        data.actuator(THRUST_LEFT).ctrl = actuator_commands[0]
+        data.actuator(THRUST_RIGHT).ctrl = actuator_commands[1]
+        data.actuator(SERVO).ctrl = actuator_commands[2]
 
-    def sense(self):
+    def _sense(self):
         """
         Returns a dictionary of current sensor readings.
+        [z_altitude, z_altitude_vel, tx_roll, ty_pitch, tz_yaw, tx_roll_rate, ty_pitch_rate, tz_yaw_rate]
         """
-        sensors = {}
-        accel_data = self.data.sensor(ACCELEROMETER).data.copy()
-        accel_data[2] -= 9.81  # remove gravity
-        sensors["accelerometer"] = accel_data
+        # take only z axis from imu_pos: [x, y, z]
+        self.senses[State.Z_ALTITUDE] = self.data.sensor(IMU_POS).data.copy()[2]
+        # take only z axis from imu_vel: [vx, vy, vz, wx, wy, wz]
+        self.senses[State.Z_ALTITUDE_VEL] = self.data.sensor(IMU_LIN_VEL).data.copy()[2]
 
-        gyro_data = self.data.sensor(GYRO).data.copy()
-        sensors["gyro"] = gyro_data
+        # convert quat to euler angles
+        quat = self.data.sensor(IMU_QUAT).data.copy()  # [w, x, y, z]
+        r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])  # scipy uses [x, y, z, w]
+        roll, pitch, yaw = r.as_euler("xyz", degrees=False)  # in radians
 
-        ultrasonic_data = self.data.sensor(ULTRASONIC).data.copy()[0]
-        sensors["ultrasonic"] = ultrasonic_data
+        self.senses[State.TX_ROLL] = roll
+        self.senses[State.TY_PITCH] = pitch
+        self.senses[State.TZ_YAW] = yaw
 
-        pos_data = self.data.sensor(BAROMETER).data.copy()
-        barometer_data = pos_data[2]
-        sensors["barometer"] = barometer_data
-
-        return sensors
+        ang_vel = self.data.sensor(IMU_ANG_VEL).data.copy()
+        self.senses[State.TX_ROLL_RATE] = ang_vel[0]
+        self.senses[State.TY_PITCH_RATE] = ang_vel[1]
+        self.senses[State.TZ_YAW_RATE] = ang_vel[2]
