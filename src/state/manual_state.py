@@ -20,7 +20,10 @@ class ManualState(RobotState):
 
         # translate key presses into desired forces
 
-        behavior_params[Behavior.READY.value] = 0.0
+        if action_states[Action.ARMED]:
+            behavior_params[Behavior.READY.value] = 1.0
+        else:
+            behavior_params[Behavior.READY.value] = 0.0
 
         # Set default targets for the PID controller
         behavior_params[Behavior.FZ_HEIGHT.value] = self.target_height

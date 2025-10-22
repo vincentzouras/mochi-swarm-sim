@@ -48,9 +48,14 @@ class Controller:
         is_pressed = action != glfw.RELEASE
         if key in KEY_BINDINGS:
             mapped_action = KEY_BINDINGS[key]
-            if mapped_action == Action.ARMED and is_pressed:
-                self.action_states[Action.ARMED] = not self.action_states[Action.ARMED]
+            if mapped_action == Action.ARMED:
+                # toggle
+                if is_pressed:
+                    self.action_states[Action.ARMED] = not self.action_states[
+                        Action.ARMED
+                    ]
             else:
+                # hold
                 self.action_states[mapped_action] = is_pressed
 
     def control_step(self, model, data):
