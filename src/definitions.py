@@ -31,7 +31,3 @@ class State(IntEnum):
     TY_PITCH_RATE = auto()
     TZ_YAW_RATE = auto()
     NUM_STATES = auto()
-
-
-class Policy(IntEnum):
-    MANUAL = 0

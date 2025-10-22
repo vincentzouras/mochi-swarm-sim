@@ -68,10 +68,10 @@ class Controller:
         self._sense()
 
         # --- State Machine Update ---
-        behavior_params = self.state_machine.update(self.senses, self.action_states)
+        behavior_commands = self.state_machine.update(self.senses, self.action_states)
 
         # --- Pass behaviors to flight controller to get actuator commands ---
-        actuator_commands = self.robot.control(self.senses, behavior_params)
+        actuator_commands = self.robot.control(self.senses, behavior_commands)
 
         # --- Apply actuator commands to simulation ---
         data.actuator(THRUST_LEFT).ctrl = actuator_commands[0]

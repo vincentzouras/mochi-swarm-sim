@@ -2,7 +2,7 @@ import mujoco as mj
 from mujoco.glfw import glfw
 import numpy as np
 
-from .definitions import State
+from .definitions import AXLE, THRUST_LEFT, THRUST_RIGHT, Action, State
 
 
 PIP_WIDTH = 320
@@ -177,9 +177,9 @@ class Simulation:
         mj.mjr_render(pip_viewport, self.scene_pip, self.context)
 
         # 3. Render Sensor Display
-        sensors = self.controller.senses
+        sensor_data = self.controller.senses
         labels = [name.lower() for name in State.__members__ if name != "NUM_STATES"]
-        sensors_formatted = "\n".join([f"{val:8.3f}" for val in sensors])
+        sensors_formatted = "\n".join([f"{val:8.3f}" for val in sensor_data])
         sensors_labels = "\n".join(labels)
         mj.mjr_overlay(
             mj.mjtFont.mjFONT_NORMAL,
@@ -190,22 +190,38 @@ class Simulation:
             self.context,
         )
 
-    """
-        f"Status: {"ARMED" if target_controls["ready"] else "DISARMED"} (Press ENTER)\n\n"
-        f"Altitude Target: {target_controls['altitude']:.2f} m (Space/Shift)\n"
-        f"Altitude Actual: {current_pos_z:.2f} m\n\n"
-        f"Yaw Target: {np.rad2deg(target_controls['yaw']):.1f} deg (A/D)\n"
-        f"Yaw Actual: {np.rad2deg(euler_rad_display[2]):.1f} deg\n\n"
-        f"Fwd Vel Target: {target_controls['forward_vel']:.2f} (W/S)\n\n"
-        f"Motor L Thrust: {data.ctrl[motor_left_thrust_id]:.2f}\n"
-        f"Motor R Thrust: {data.ctrl[motor_right_thrust_id]:.2f}\n"
-        f"Servo Angle: {np.rad2deg(data.ctrl[motors_servo_id]):.1f} deg"
-
-        f"Acel: {accel_data[0]:8.3f}, {accel_data[1]:8.3f}, {accel_data[2]:8.3f} m/s^2\n"
-        f"Gyro: {gyro_data[0]:8.3f}, {gyro_data[1]:8.3f}, {gyro_data[2]:8.3f} rad/s\n"
-        f"Ultra: {ultrasonic_data:8.3f} m\n"
-        f"Baro: {barometer_data:8.3f} m"
-    """
+        # 4. Render additional information
+        armed = "ARMED" if self.controller.action_states[Action.ARMED] else "DISARMED"
+        info_formatted = (
+            f"{armed}\n"
+            f"{self.controller.state_machine.current_state.target_height:8.3f}\n"
+            f"{sensor_data[State.Z_ALTITUDE]:8.3f}\n"
+            f"{self.controller.state_machine.current_state.target_yaw:8.3f}\n"
+            f"{sensor_data[State.TZ_YAW]:8.3f}\n"
+            f"{self.controller.state_machine.current_state.target_thrust:8.3f}\n"
+            f"{self.data.actuator(THRUST_LEFT).ctrl[0]:8.3f}\n"
+            f"{self.data.actuator(THRUST_RIGHT).ctrl[0]:8.3f}\n"
+            f"{self.data.joint(AXLE).qpos[0]:8.3f}"
+        )
+        info_labels = (
+            f"Status\n"
+            f"Altitude Target\n"
+            f"Altitude Actual\n"
+            f"Yaw Target\n"
+            f"Yaw Actual\n"
+            f"Target Thrust\n"
+            f"Motor L Thrust\n"
+            f"Motor R Thrust\n"
+            f"Servo Angle"
+        )
+        mj.mjr_overlay(
+            mj.mjtFont.mjFONT_NORMAL,
+            mj.mjtGridPos.mjGRID_BOTTOMLEFT,
+            main_viewport,
+            info_formatted,
+            info_labels,
+            self.context,
+        )
 
     def run(self):
         """Starts the main simulation loop."""

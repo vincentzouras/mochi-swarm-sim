@@ -86,11 +86,10 @@ class Differential:
             self.z_integral = np.clip(self.z_integral, self.z_int_low, self.z_int_high)
 
             # PID output calculation
-            #              P                        D                      I
             fz_out = (
-                (e_z * self.kpz)
-                - (sensors[State.Z_ALTITUDE_VEL] * self.kdz)
-                + self.z_integral
+                (e_z * self.kpz)  # P
+                - (sensors[State.Z_ALTITUDE_VEL] * self.kdz)  # D
+                + self.z_integral  # I
             )
 
         # --- Yaw Feedback (Cascading PID) ---
@@ -141,11 +140,14 @@ class Differential:
         fx_target = np.clip(feedback_controls[Control.FX], -1.0, 1.0)  # forward force
         fz_target = np.clip(feedback_controls[Control.FZ], -1.0, 1.0)  # upward force
         tz_target = np.clip(feedback_controls[Control.TZ], -0.1, 0.1)  # yaw torque
-
         l = self.lx  # distance from center to motor (blimp radius)
 
         F_mag_sq = fx_target**2 + fz_target**2
-        theta = np.atan2(fz_target, fx_target)  # angle of servo
+
+        if F_mag_sq > 0:
+            theta = np.atan2(fz_target, fx_target)  # angle of servo
+        else:
+            theta = 0.0
 
         # omitting exponential moving average, because not used in real setup
 
@@ -155,30 +157,29 @@ class Differential:
 
         if F_mag_sq > 0:
             # if basically no forward force, assign force so we can still calculate angle
-            if abs(fx_target) < 0.00001:
-                fx_target = 10 * abs(tz_target)
-                theta = np.atan2(fz_target, abs(tz_target * 10))
+            # if abs(fx_target) < 0.00001:
+            #     fx_target = 10 * abs(tz_target)
+            #     theta = np.atan2(fz_target, abs(tz_target * 10))
 
             # if rotating in place with very small forward force
-            if abs(tz_target / fx_target) > 0.1:
-                fx_target = 0.2  # set min forward force
-                scaled_tz_target = tz_target * abs(fx_target)
-                tz_target = scaled_tz_target
-                theta = np.atan2(fz_target, fx_target)
+            # if abs(tz_target / fx_target) > 0.1:
+            #     fx_target = 0.2  # set min forward force
+            #     scaled_tz_target = tz_target * abs(fx_target)
+            #     tz_target = scaled_tz_target
+            #     theta = np.atan2(fz_target, fx_target)
 
             if fx_target < 0:
                 theta = np.pi - 0.01
-
-            term1 = tz_target / (l * np.cos(theta))
+            c = np.clip(np.cos(theta), 1e-6, 1.0)
+            term1 = tz_target / (l * c)
             term2 = np.sqrt(F_mag_sq)
-            f1 = 0.5 * (term1 + term2)
-            f2 = 0.5 * (-term1 + term2)
+            f1 = 0.5 * (-term1 + term2)
+            f2 = 0.5 * (term1 + term2)
 
         # Clamp outputs
-        f1_out = np.clip(f1, 0.0, 1.0)  # Assuming 0 to 1 range for thrust
+        f1_out = np.clip(f1, 0.0, 1.0)
         f2_out = np.clip(f2, 0.0, 1.0)
-        theta_out = np.clip(theta, -np.pi / 2, np.pi / 2)  # Servo range
+        theta_out = np.clip(theta, 0, np.pi * 2)  # Servo range
 
-        # Return [right_thrust, left_thrust, servo_angle]
-        # Match this to your MuJoCo model's actuators
+        # Return [left_thrust, right_thrust, servo_angle]
         return np.array([f1_out, f2_out, theta_out])
