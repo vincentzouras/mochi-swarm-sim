@@ -14,7 +14,4 @@ KDDYAW = 0.03
 KIYAW = 0.0
 
 LX = 0.1  # blimp radius
-DT = 0.01
-
-SERVO_RANGE = 6.28319
-SERVO_BETA = 3.14159
+DT = 0.01  # MAKE THIS MATCH SIMULATION TIME STEP (in option at top of XML)

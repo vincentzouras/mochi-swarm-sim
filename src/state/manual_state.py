@@ -9,10 +9,12 @@ class ManualState(RobotState):
         self.target_height = 1.5
         self.target_yaw = 0.0  # angle
         self.target_thrust = 0.0
+        self._prev_updown = False  #  overriding feedback during manual input
+        self._prev_leftright = False  #  overriding feedback during manual input
 
     def update(
         self, sensors: np.ndarray, action_states: dict
-    ) -> Tuple[np.ndarray, "RobotState"]:
+    ) -> Tuple[np.ndarray, RobotState]:
 
         # equivalent to 'behave.params' in DiffController.ino
         behavior_targets = np.zeros(Behavior.NUM_PARAMS)
@@ -27,9 +29,14 @@ class ManualState(RobotState):
 
         # up/down altitude
         if action_states[Action.UP]:
-            self.target_height = sensors[State.Z_ALTITUDE] + 1.0
+            self.target_height = sensors[State.Z_ALTITUDE] + 3.0
+            self._prev_updown = True
         elif action_states[Action.DOWN]:
-            self.target_height = sensors[State.Z_ALTITUDE] - 1.0
+            self.target_height = sensors[State.Z_ALTITUDE] - 3.0
+            self._prev_updown = True
+        elif self._prev_updown:
+            self.target_height = sensors[State.Z_ALTITUDE]
+            self._prev_updown = False
         behavior_targets[Behavior.Z_HEIGHT] = self.target_height
 
         # forward/backward thrust
@@ -44,8 +51,13 @@ class ManualState(RobotState):
         # left/right yaw
         if action_states[Action.LEFT]:
             self.target_yaw = sensors[State.Z_YAW] + (np.pi / 2)
+            self._prev_leftright = True
         elif action_states[Action.RIGHT]:
             self.target_yaw = sensors[State.Z_YAW] - (np.pi / 2)
+            self._prev_leftright = True
+        elif self._prev_leftright:
+            self.target_yaw = sensors[State.Z_YAW]
+            self._prev_leftright = False
         # Normalize yaw to [-pi, pi]
         self.target_yaw = np.atan2(np.sin(self.target_yaw), np.cos(self.target_yaw))
         behavior_targets[Behavior.Z_YAW] = self.target_yaw
