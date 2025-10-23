@@ -9,7 +9,6 @@ class ManualState(RobotState):
         self.target_height = 1.5
         self.target_yaw = 0.0  # angle
         self.target_thrust = 0.0
-        self.yaw_rate = 0.02  # rad/s
 
     def update(
         self, sensors: np.ndarray, action_states: dict
@@ -35,18 +34,18 @@ class ManualState(RobotState):
 
         # forward/backward thrust
         if action_states[Action.FORWARD]:
-            self.target_thrust = 0.5
+            self.target_thrust = 1.0
         elif action_states[Action.BACKWARD]:
-            self.target_thrust = -0.5
+            self.target_thrust = -1.0
         else:
             self.target_thrust = 0.0
         behavior_targets[Behavior.FX_FORWARD] = self.target_thrust
 
         # left/right yaw
         if action_states[Action.LEFT]:
-            self.target_yaw += self.yaw_rate
+            self.target_yaw = sensors[State.Z_YAW] + (np.pi / 2)
         elif action_states[Action.RIGHT]:
-            self.target_yaw -= self.yaw_rate
+            self.target_yaw = sensors[State.Z_YAW] - (np.pi / 2)
         # Normalize yaw to [-pi, pi]
         self.target_yaw = np.atan2(np.sin(self.target_yaw), np.cos(self.target_yaw))
         behavior_targets[Behavior.Z_YAW] = self.target_yaw

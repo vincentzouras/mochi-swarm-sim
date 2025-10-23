@@ -140,28 +140,23 @@ class Differential:
         It converts forces (fx, fz) and torque (tz) into
         motor thrusts (f1, f2) and servo angle (theta).
         """
-        fx_target = np.clip(feedback_controls[Control.FX], -1.0, 1.0)  # forward force
-        fz_target = np.clip(feedback_controls[Control.FZ], -1.0, 1.0)  # upward force
+        fx_target = np.clip(feedback_controls[Control.FX], -2.0, 2.0)  # forward force
+        fz_target = np.clip(feedback_controls[Control.FZ], -2.0, 2.0)  # upward force
         tz_target = np.clip(feedback_controls[Control.TZ], -0.1, 0.1)  # yaw torque
         l = self.lx  # distance from center to motor (blimp radius)
 
         F_mag_sq = fx_target**2 + fz_target**2
 
+        theta = 0.0  # angle of servo
+
         if F_mag_sq > 0:
-            theta = np.atan2(fz_target, fx_target)  # angle of servo
-        else:
-            theta = 0.0
+            theta = np.atan2(fz_target, fx_target)
 
         # omitting exponential moving average, because not used in real setup
 
         # thrusts for left and right motors
         f1 = 0.0
         f2 = 0.0
-
-        if F_mag_sq > 0:
-            theta = np.atan2(fz_target, fx_target)
-        else:
-            theta = 0.0
 
         c = np.cos(theta)
 
