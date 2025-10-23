@@ -13,11 +13,9 @@ class RobotStateMachine:
     def update(self, sensors: np.ndarray, action_states: dict) -> np.ndarray:
         """
         Calls the current state's update and handles transitions.
-
         Args:
             sensors: A numpy array of current sensor readings.
             action_states: A dictionary of the current action states.
-
         Returns:
             A numpy array of high-level behavior commands from the current state.
         """

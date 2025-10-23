@@ -197,7 +197,7 @@ class Simulation:
             f"{self.controller.state_machine.current_state.target_height:8.3f}\n"
             f"{sensor_data[State.Z_ALTITUDE]:8.3f}\n"
             f"{self.controller.state_machine.current_state.target_yaw:8.3f}\n"
-            f"{sensor_data[State.TZ_YAW]:8.3f}\n"
+            f"{sensor_data[State.Z_YAW]:8.3f}\n"
             f"{self.controller.state_machine.current_state.target_thrust:8.3f}\n"
             f"{self.data.actuator(THRUST_LEFT).ctrl[0]:8.3f}\n"
             f"{self.data.actuator(THRUST_RIGHT).ctrl[0]:8.3f}\n"

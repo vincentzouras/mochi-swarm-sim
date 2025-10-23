@@ -16,22 +16,22 @@ class ManualState(RobotState):
     ) -> Tuple[np.ndarray, "RobotState"]:
 
         # equivalent to 'behave.params' in DiffController.ino
-        controls = np.zeros(Behavior.NUM_PARAMS)
+        behavior_targets = np.zeros(Behavior.NUM_PARAMS)
 
         # translate key presses into desired forces
 
-        controls[Behavior.READY] = 1.0 if action_states[Action.ARMED] else 0.0
+        behavior_targets[Behavior.READY] = 1.0 if action_states[Action.ARMED] else 0.0
 
         # Set default targets for the PID controller
-        controls[Behavior.FZ_HEIGHT] = self.target_height
-        controls[Behavior.TZ_YAW] = self.target_yaw
+        behavior_targets[Behavior.Z_HEIGHT] = self.target_height
+        behavior_targets[Behavior.Z_YAW] = self.target_yaw
 
         # up/down altitude
         if action_states[Action.UP]:
             self.target_height = sensors[State.Z_ALTITUDE] + 1.0
         elif action_states[Action.DOWN]:
             self.target_height = sensors[State.Z_ALTITUDE] - 1.0
-        controls[Behavior.FZ_HEIGHT] = self.target_height
+        behavior_targets[Behavior.Z_HEIGHT] = self.target_height
 
         # forward/backward thrust
         if action_states[Action.FORWARD]:
@@ -40,17 +40,16 @@ class ManualState(RobotState):
             self.target_thrust = -0.5
         else:
             self.target_thrust = 0.0
-        controls[Behavior.FX_FORWARD] = self.target_thrust
+        behavior_targets[Behavior.FX_FORWARD] = self.target_thrust
 
         # left/right yaw
         if action_states[Action.LEFT]:
             self.target_yaw += self.yaw_rate
         elif action_states[Action.RIGHT]:
             self.target_yaw -= self.yaw_rate
-
         # Normalize yaw to [-pi, pi]
-        self.target_yaw = np.mod(self.target_yaw + np.pi, 2 * np.pi) - np.pi
-        controls[Behavior.TZ_YAW] = self.target_yaw
+        self.target_yaw = np.atan2(np.sin(self.target_yaw), np.cos(self.target_yaw))
+        behavior_targets[Behavior.Z_YAW] = self.target_yaw
 
         # Always stay in ManualState in this example
-        return controls, self
+        return behavior_targets, self

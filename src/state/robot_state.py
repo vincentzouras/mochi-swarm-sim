@@ -7,9 +7,9 @@ import numpy as np
 class Behavior(IntEnum):
     READY = 0
     FX_FORWARD = auto()
-    FZ_HEIGHT = auto()
+    Z_HEIGHT = auto()
     TX_ROLL = auto()
-    TZ_YAW = auto()
+    Z_YAW = auto()
     NUM_PARAMS = auto()
 
 

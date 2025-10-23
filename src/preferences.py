@@ -1,17 +1,20 @@
 Z_EN = True
 YAW_EN = True
 
-KPZ = 0.7
-KDZ = 0.5
+KPZ = 0.9
+KDZ = 1.2
 KIZ = 0.0
-Z_INT_LOW = -1.0
-Z_INT_HIGH = 1.0
+Z_INT_LOW = 0
+Z_INT_HIGH = 0.15
 
-KPYAW = 0.1
-KPPYAW = 0.1
-KDYAW = 0.1
-KDDYAW = 0.1
+KPYAW = 1.7
+KPPYAW = 0.03
+KDYAW = 0.045
+KDDYAW = 0.03
 KIYAW = 0.0
 
-LX = 0.15  # blimp radius
+LX = 0.1  # blimp radius
 DT = 0.01
+
+SERVO_RANGE = 6.28319
+SERVO_BETA = 3.14159

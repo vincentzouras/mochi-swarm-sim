@@ -4,6 +4,7 @@ from .state.robot_state_machine import RobotStateMachine
 from .state.manual_state import ManualState
 from .robot.differential import Differential
 from scipy.spatial.transform import Rotation as R
+from typing import Protocol
 from .definitions import (
     Action,
     State,
@@ -28,7 +29,7 @@ KEY_BINDINGS = {
 }
 
 
-class Controller:
+class Controller(Protocol):
     """
     Handles all flight logic and sensor data parsing.
     """
@@ -81,7 +82,7 @@ class Controller:
     def _sense(self):
         """
         Returns a dictionary of current sensor readings.
-        [z_altitude, z_altitude_vel, tx_roll, ty_pitch, tz_yaw, tx_roll_rate, ty_pitch_rate, tz_yaw_rate]
+        [z_altitude, z_altitude_vel, x_roll, y_pitch, z_yaw, x_roll_rate, y_pitch_rate, z_yaw_rate]
         """
         # take only z axis from imu_pos: [x, y, z]
         self.senses[State.Z_ALTITUDE] = self.data.sensor(IMU_POS).data.copy()[2]
@@ -93,11 +94,11 @@ class Controller:
         r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])  # scipy uses [x, y, z, w]
         roll, pitch, yaw = r.as_euler("xyz", degrees=False)  # in radians
 
-        self.senses[State.TX_ROLL] = roll
-        self.senses[State.TY_PITCH] = pitch
-        self.senses[State.TZ_YAW] = yaw
+        self.senses[State.X_ROLL] = roll
+        self.senses[State.Y_PITCH] = pitch
+        self.senses[State.Z_YAW] = yaw
 
         ang_vel = self.data.sensor(IMU_ANG_VEL).data.copy()
-        self.senses[State.TX_ROLL_RATE] = ang_vel[0]
-        self.senses[State.TY_PITCH_RATE] = ang_vel[1]
-        self.senses[State.TZ_YAW_RATE] = ang_vel[2]
+        self.senses[State.X_ROLL_RATE] = ang_vel[0]
+        self.senses[State.Y_PITCH_RATE] = ang_vel[1]
+        self.senses[State.Z_YAW_RATE] = ang_vel[2]

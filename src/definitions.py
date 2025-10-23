@@ -24,10 +24,10 @@ class Action(IntEnum):
 class State(IntEnum):
     Z_ALTITUDE = 0
     Z_ALTITUDE_VEL = auto()
-    TX_ROLL = auto()
-    TY_PITCH = auto()
-    TZ_YAW = auto()
-    TX_ROLL_RATE = auto()
-    TY_PITCH_RATE = auto()
-    TZ_YAW_RATE = auto()
+    X_ROLL = auto()
+    Y_PITCH = auto()
+    Z_YAW = auto()
+    X_ROLL_RATE = auto()
+    Y_PITCH_RATE = auto()
+    Z_YAW_RATE = auto()
     NUM_STATES = auto()

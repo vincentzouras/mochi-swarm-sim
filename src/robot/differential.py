@@ -46,38 +46,41 @@ class Differential:
         self.lx = preferences.LX  # Blimp radius
         self.dt = preferences.DT  # Simulation time step, adjust as needed
 
-    def control(self, sensors: np.ndarray, controls_in: np.ndarray) -> np.ndarray:
+    def control(self, sensors: np.ndarray, behavior_commands: np.ndarray) -> np.ndarray:
         """
         (Differential::control)
         Takes high-level commands and returns low-level actuator outputs.
         """
-        if controls_in[Behavior.READY] == 0:
+        if behavior_commands[Behavior.READY] == 0:
             # Return [right_thrust, left_thrust, servo_angle]
             return np.array([0.0, 0.0, np.pi / 2])  # Motors off, servos up
 
         # 1. Apply Feedback (PID controllers)
-        feedback_controls = self._add_feedback(sensors, controls_in)
+        target_forces = self._add_feedback(sensors, behavior_commands)
 
         # 2. Calculate Actuator Outputs (Mixer)
-        actuator_outputs = self._get_outputs(feedback_controls)
+        actuator_outputs = self._get_outputs(target_forces)
 
         return actuator_outputs
 
-    def _add_feedback(self, sensors: np.ndarray, controls_in: np.ndarray) -> dict:
+    def _add_feedback(self, sensors: np.ndarray, behavior_commands: np.ndarray) -> dict:
         """
         (Differential::addFeedback).
         Converts desired setpoints (e.g., height, yaw) into forces and torques.
         """
         # Get high-level commands
-        fx = controls_in[Behavior.FX_FORWARD]  # we dont add feedback just need it
-        fz_target = controls_in[Behavior.FZ_HEIGHT]
-        tx = controls_in[Behavior.TX_ROLL]  # we dont add feedback just need it
-        tz_target = controls_in[Behavior.TZ_YAW]
+        fx = behavior_commands[Behavior.FX_FORWARD]  # we dont add feedback just need it
+        z_setpoint = behavior_commands[Behavior.Z_HEIGHT]
+        tx = behavior_commands[Behavior.TX_ROLL]  # we dont add feedback just need it
+        yaw_setpoint = behavior_commands[Behavior.Z_YAW]
+
+        fz_out = 0.0
+        tz_out = 0.0
 
         # --- Z (Altitude) Feedback ---
         if self.zEn:
             # error calculation
-            e_z = fz_target - sensors[State.Z_ALTITUDE]
+            e_z = z_setpoint - sensors[State.Z_ALTITUDE]
 
             # integral update
             # integrate error over time, multiply by timestep, and apply integral gain
@@ -96,14 +99,14 @@ class Differential:
         #  cascading so we have separate PID for yaw and yaw rate
         if self.yawEn:
             # error calculation
-            e_yaw = tz_target - sensors[State.TZ_YAW]
+            e_yaw = yaw_setpoint - sensors[State.Z_YAW]
             # Normalize yaw error (wraps error to range [-pi, pi])
             e_yaw = np.atan2(np.sin(e_yaw), np.cos(e_yaw))
             # clamp to prevent windup
             e_yaw = np.clip(e_yaw, -np.pi / 5, np.pi / 5)
 
             # integral update for yaw
-            self.yaw_integral += e_yaw * self.dt * self.kiyaw  # TODO: could be wrong
+            self.yaw_integral += e_yaw * self.dt * self.kiyaw
             # clamp within bounds to prevent windup
             self.yaw_integral = np.clip(self.yaw_integral, -np.pi / 5, np.pi / 5)
 
@@ -111,12 +114,12 @@ class Differential:
             yaw_desired_rate = e_yaw + self.yaw_integral
             # reduce yaw control when moving forward
             scaling_factor = 1.0 - np.clip(abs(fx), 0.0, 1.0)
-            kpyaw_max_increase = 0.04  # TODO: could make preference
+            kpyaw_max_increase = 0.04
             # adjust P term dynamically based on forward speed
             dynamic_kpyaw = self.kpyaw + scaling_factor * kpyaw_max_increase
-            e_yawrate = yaw_desired_rate * dynamic_kpyaw - sensors[State.TZ_YAW_RATE]
+            e_yawrate = yaw_desired_rate * dynamic_kpyaw - sensors[State.Z_YAW_RATE]
 
-            kdyaw_max_increase = 0.04  # TODO: could make preference
+            kdyaw_max_increase = 0.04
             # adjust D term dynamically based on forward speed
             dynamic_kdyaw = self.kdyaw + scaling_factor * kdyaw_max_increase
 
@@ -124,7 +127,7 @@ class Differential:
             tz_out = (
                 yaw_desired_rate * self.kppyaw
                 + e_yawrate * dynamic_kdyaw
-                - sensors[State.TZ_YAW_RATE] * self.kddyaw
+                - sensors[State.Z_YAW_RATE] * self.kddyaw
                 + self.yawrate_integral  # this is zero, not used in real setup for differential
             )
 
@@ -156,30 +159,26 @@ class Differential:
         f2 = 0.0
 
         if F_mag_sq > 0:
-            # if basically no forward force, assign force so we can still calculate angle
-            # if abs(fx_target) < 0.00001:
-            #     fx_target = 10 * abs(tz_target)
-            #     theta = np.atan2(fz_target, abs(tz_target * 10))
+            theta = np.atan2(fz_target, fx_target)
+        else:
+            theta = 0.0
 
-            # if rotating in place with very small forward force
-            # if abs(tz_target / fx_target) > 0.1:
-            #     fx_target = 0.2  # set min forward force
-            #     scaled_tz_target = tz_target * abs(fx_target)
-            #     tz_target = scaled_tz_target
-            #     theta = np.atan2(fz_target, fx_target)
+        c = np.cos(theta)
 
-            if fx_target < 0:
-                theta = np.pi - 0.01
-            c = np.clip(np.cos(theta), 1e-6, 1.0)
-            term1 = tz_target / (l * c)
-            term2 = np.sqrt(F_mag_sq)
-            f1 = 0.5 * (-term1 + term2)
-            f2 = 0.5 * (term1 + term2)
+        if abs(c) < 1e-6:  # Thrusters are pointing vertically, cannot produce yaw.
+            term1 = 0.0
+        else:
+            term1 = tz_target / (l * c)  # 'c' is now correctly positive or negative
+
+        term2 = np.sqrt(F_mag_sq)
+
+        f1 = 0.5 * (-term1 + term2)
+        f2 = 0.5 * (term1 + term2)
 
         # Clamp outputs
         f1_out = np.clip(f1, 0.0, 1.0)
         f2_out = np.clip(f2, 0.0, 1.0)
-        theta_out = np.clip(theta, 0, np.pi * 2)  # Servo range
+        theta_out = np.clip(theta, -np.pi, np.pi)  # keep servo in [-pi, pi]
 
         # Return [left_thrust, right_thrust, servo_angle]
         return np.array([f1_out, f2_out, theta_out])
