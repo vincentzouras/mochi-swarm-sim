@@ -14,6 +14,12 @@ class Behavior(IntEnum):
 
 
 class RobotState(ABC):
+    def __init__(self) -> None:
+        # Standardized targets every state should expose for UI/telemetry
+        # and downstream controllers. Subclasses should update these each cycle.
+        self.target_height: float = 0.0
+        self.target_yaw: float = 0.0
+        self.target_thrust: float = 0.0
 
     @abstractmethod
     def update(

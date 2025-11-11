@@ -22,6 +22,12 @@ class Simulation:
         self.opt = mj.MjvOption()
         self.camera_follow = True
 
+        # Trajectory recording (world XYZ of main body)
+        self._assembly_id = self.model.body(ASSEMBLY).id
+        self.traj_x = []
+        self.traj_y = []
+        self.traj_z = []
+
         # --- GLFW and MuJoCo Visualization Init ---
         glfw.init()
         glfw.window_hint(glfw.MAXIMIZED, glfw.TRUE)
@@ -141,8 +147,7 @@ class Simulation:
         """Renders one frame of the simulation, including PiP and overlays."""
 
         if self.camera_follow:
-            body_id = self.model.body("assembly").id
-            pos = self.data.xpos[body_id]
+            pos = self.data.xpos[self._assembly_id]
             self.cam.lookat[:] = pos
 
         viewport_width, viewport_height = glfw.get_framebuffer_size(self.window)
@@ -230,6 +235,12 @@ class Simulation:
             while self.data.time - time_prev < 1.0 / 60.0:
                 mj.mj_step(self.model, self.data)
 
+            # Record trajectory point once per rendered frame
+            pos = self.data.xpos[self._assembly_id]
+            self.traj_x.append(float(pos[0]))
+            self.traj_y.append(float(pos[1]))
+            self.traj_z.append(float(pos[2]))
+
             # Render the frame
             self._render_frame()
 
@@ -241,3 +252,79 @@ class Simulation:
 
     def stop(self):
         glfw.terminate()
+        try:
+            if len(self.traj_x) > 1:
+                self._plot_3d_trajectory()
+                self._plot_xy_trajectory()
+        except Exception as e:
+            print(f"Trajectory plotting skipped ({e})")
+
+    def _plot_3d_trajectory(self):
+        """Render a 3D plot of the recorded trajectory."""
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+        fig = plt.figure(figsize=(7, 6))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.plot(
+            self.traj_x,
+            self.traj_y,
+            self.traj_z,
+            "-",
+            linewidth=1.5,
+            label="trajectory",
+        )
+        ax.scatter(
+            self.traj_x[0],
+            self.traj_y[0],
+            self.traj_z[0],
+            c="green",
+            s=40,
+            label="start",
+        )
+        ax.scatter(
+            self.traj_x[-1],
+            self.traj_y[-1],
+            self.traj_z[-1],
+            c="red",
+            s=40,
+            label="end",
+        )
+
+        xs = np.array(self.traj_x)
+        ys = np.array(self.traj_y)
+        zs = np.array(self.traj_z)
+        x_range = xs.max() - xs.min()
+        y_range = ys.max() - ys.min()
+        z_range = zs.max() - zs.min()
+        max_range = max(x_range, y_range, z_range, 1e-9)
+        ax.set_box_aspect(
+            (x_range / max_range, y_range / max_range, z_range / max_range)
+        )
+
+        ax.set_title("Robot 3D trajectory")
+        ax.set_xlabel("X (m)")
+        ax.set_ylabel("Y (m)")
+        ax.set_zlabel("Z (m)")
+        ax.grid(True, linestyle="--", alpha=0.4)
+        ax.legend(loc="best")
+        plt.tight_layout()
+        plt.show()
+
+    def _plot_xy_trajectory(self):
+        """Render a 2D top-down plot of the recorded trajectory."""
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(6, 6))
+        ax2 = fig.add_subplot(111)
+        ax2.plot(self.traj_x, self.traj_y, "-", linewidth=1.5, label="trajectory")
+        ax2.scatter(self.traj_x[0], self.traj_y[0], c="green", s=40, label="start")
+        ax2.scatter(self.traj_x[-1], self.traj_y[-1], c="red", s=40, label="end")
+        ax2.set_aspect("equal", adjustable="box")
+        ax2.set_title("Robot XY trajectory")
+        ax2.set_xlabel("X (m)")
+        ax2.set_ylabel("Y (m)")
+        ax2.grid(True, linestyle="--", alpha=0.4)
+        ax2.legend(loc="best")
+        plt.tight_layout()
+        plt.show()

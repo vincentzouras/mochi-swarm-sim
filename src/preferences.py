@@ -15,3 +15,6 @@ KIYAW = 0.0
 
 LX = 0.1  # blimp radius
 DT = 0.01  # MAKE THIS MATCH SIMULATION TIME STEP (in option at top of XML)
+
+B_DEFAULT_HEIGHT = 5
+B_DEFAULT_RANGE = 3

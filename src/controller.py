@@ -2,6 +2,7 @@ import numpy as np
 from mujoco.glfw import glfw
 from .state.robot_state_machine import RobotStateMachine
 from .state.manual_state import ManualState
+from .state.exploration_state import ExplorationState
 from .robot.differential import Differential
 from scipy.spatial.transform import Rotation as R
 from typing import Protocol
@@ -47,6 +48,18 @@ class Controller(Protocol):
         Called by the simulation's keyboard callback to update our internal state.
         """
         is_pressed = action != glfw.RELEASE
+
+        # State selection via number keys (press to select state; does not toggle ARMED)
+        if action == glfw.PRESS:
+            if key == glfw.KEY_1:
+                self.state_machine.current_state = ManualState()
+                print("[STATE SELECT] ManualState (1)")
+                return
+            if key == glfw.KEY_2:
+                self.state_machine.current_state = ExplorationState()
+                print("[STATE SELECT] ExplorationState (2)")
+                return
+
         if key in KEY_BINDINGS:
             mapped_action = KEY_BINDINGS[key]
             if mapped_action == Action.ARMED:
@@ -55,6 +68,9 @@ class Controller(Protocol):
                     self.action_states[Action.ARMED] = not self.action_states[
                         Action.ARMED
                     ]
+                    print(
+                        f"[ARMED] {'ON' if self.action_states[Action.ARMED] else 'OFF'}"
+                    )
             else:
                 # hold
                 self.action_states[mapped_action] = is_pressed

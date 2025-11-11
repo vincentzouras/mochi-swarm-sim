@@ -2,3 +2,4 @@ numpy
 mujoco
 glfw
 scipy
+matplotlib

@@ -6,6 +6,7 @@ from src.definitions import Action, State
 
 class ManualState(RobotState):
     def __init__(self):
+        super().__init__()
         self.target_height = 1.5
         self.target_yaw = 0.0  # angle
         self.target_thrust = 0.0
