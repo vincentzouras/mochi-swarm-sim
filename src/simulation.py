@@ -3,11 +3,10 @@ from mujoco.glfw import glfw
 import numpy as np
 
 from .definitions import AXLE, THRUST_LEFT, THRUST_RIGHT, Action, State
-from .controller import KEY_BINDINGS
 
 
-PIP_WIDTH = 320
-PIP_HEIGHT = 240
+PIP_WIDTH = 240
+PIP_HEIGHT = 160
 PIP_MARGIN = 20
 CAMERA = "nicla_vision"
 ASSEMBLY = "assembly"
@@ -221,24 +220,6 @@ class Simulation:
             main_viewport,
             info_formatted,
             info_labels,
-            self.context,
-        )
-
-        # FIXME: temp controls overlay
-        controls_formatted = (
-            "Controls\n"
-            "W/S: Forward/Backward\n"
-            "A/D: Yaw Left/Right\n"
-            "Space/Shift: Altitude Up/Down\n"
-            "Enter: Arm/Disarm\n"
-            "Backspace: Respawn"
-        )
-        mj.mjr_overlay(
-            mj.mjtFont.mjFONT_NORMAL,
-            mj.mjtGridPos.mjGRID_TOPRIGHT,
-            main_viewport,
-            controls_formatted,
-            None,
             self.context,
         )
 
