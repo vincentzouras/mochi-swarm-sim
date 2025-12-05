@@ -100,8 +100,22 @@ class Controller(Protocol):
         self._sense()
 
         # --- Collect state (before action is computed) ---
+        # State = [x_vel, y_vel, z_vel, x_roll, y_pitch, z_yaw, x_roll_rate, y_pitch_rate, z_yaw_rate]
         if self.collect_data:
-            self._current_state = self.senses.copy()
+            x_vel, y_vel = self.get_global_velocity()
+            z_vel = self.senses[State.Z_ALTITUDE_VEL]
+            # Reorder: velocities first, then orientation, then angular velocities
+            self._current_state = np.array([
+                x_vel,                                    # x_vel
+                y_vel,                                    # y_vel
+                z_vel,                                    # z_vel (z_altitude_vel)
+                self.senses[State.X_ROLL],                # x_roll
+                self.senses[State.Y_PITCH],               # y_pitch
+                self.senses[State.Z_YAW],                 # z_yaw
+                self.senses[State.X_ROLL_RATE],           # x_roll_rate
+                self.senses[State.Y_PITCH_RATE],          # y_pitch_rate
+                self.senses[State.Z_YAW_RATE]             # z_yaw_rate
+            ])
 
         # --- State Machine Update ---
         behavior_commands = self.state_machine.update(self.senses, self.action_states)
@@ -131,6 +145,7 @@ class Controller(Protocol):
         """
         Returns a dictionary of current sensor readings.
         [z_altitude, z_altitude_vel, x_roll, y_pitch, z_yaw, x_roll_rate, y_pitch_rate, z_yaw_rate]
+        Note: X_VEL and Y_VEL are available separately via get_global_velocity()
         """
         # take only z axis from imu_pos: [x, y, z]
         self.senses[State.Z_ALTITUDE] = self.data.sensor(IMU_POS).data.copy()[2]
@@ -151,15 +166,40 @@ class Controller(Protocol):
         self.senses[State.Y_PITCH_RATE] = ang_vel[1]
         self.senses[State.Z_YAW_RATE] = ang_vel[2]
 
+    def get_global_velocity(self):
+        """
+        Get global velocity components separately (not stored in senses array).
+        Returns: (x_vel, y_vel) tuple in world frame
+        """
+        lin_vel = self.data.sensor(IMU_LIN_VEL).data.copy()  # [vx, vy, vz]
+        x_vel = lin_vel[0]  # Global x velocity
+        y_vel = lin_vel[1]  # Global y velocity
+        return x_vel, y_vel
+
     def capture_next_state(self):
         """
         Call this after mj_step() to capture the next state.
         Forms (state, action, next_state) tuple and stores it if data collection is enabled.
+        State format: [x_vel, y_vel, z_vel, x_roll, y_pitch, z_yaw, x_roll_rate, y_pitch_rate, z_yaw_rate]
         """
         if self.collect_data and self._current_state is not None and self._current_action is not None:
             # Capture next state (after physics step)
+            # State = [x_vel, y_vel, z_vel, x_roll, y_pitch, z_yaw, x_roll_rate, y_pitch_rate, z_yaw_rate]
             self._sense()
-            next_state = self.senses.copy()
+            x_vel, y_vel = self.get_global_velocity()
+            z_vel = self.senses[State.Z_ALTITUDE_VEL]
+            # Reorder: velocities first, then orientation, then angular velocities
+            next_state = np.array([
+                x_vel,                                    # x_vel
+                y_vel,                                    # y_vel
+                z_vel,                                    # z_vel (z_altitude_vel)
+                self.senses[State.X_ROLL],                # x_roll
+                self.senses[State.Y_PITCH],               # y_pitch
+                self.senses[State.Z_YAW],                 # z_yaw
+                self.senses[State.X_ROLL_RATE],           # x_roll_rate
+                self.senses[State.Y_PITCH_RATE],          # y_pitch_rate
+                self.senses[State.Z_YAW_RATE]             # z_yaw_rate
+            ])
             
             # Store the tuple
             self.data_buffer.append((
