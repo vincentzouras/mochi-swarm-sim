@@ -1,4 +1,6 @@
 import numpy as np
+import pickle
+import os
 from mujoco.glfw import glfw
 from .state.robot_state_machine import RobotStateMachine
 from .state.manual_state import ManualState
@@ -43,6 +45,19 @@ class Controller(Protocol):
         self.robot = Differential()
         self.senses = np.zeros(State.NUM_STATES)
 
+        # Data collection for (state, action, next_state) tuples
+        self.collect_data = False
+        self.data_buffer = []  # List of (state, action, next_state) tuples
+        self._current_state = None
+        self._current_action = None
+        
+        # Noise injection for data collection
+        self.noise_enabled = False
+        self.noise_std = np.array([0.0, 0.0, 0.0])  # [left_thrust, right_thrust, servo_angle]
+        self.noise_seed = None
+        if self.noise_seed is not None:
+            np.random.seed(self.noise_seed)
+
     def update_key_state(self, key, action):
         """
         Called by the simulation's keyboard callback to update our internal state.
@@ -84,16 +99,33 @@ class Controller(Protocol):
         # --- Sense ---
         self._sense()
 
+        # --- Collect state (before action is computed) ---
+        if self.collect_data:
+            self._current_state = self.senses.copy()
+
         # --- State Machine Update ---
         behavior_commands = self.state_machine.update(self.senses, self.action_states)
 
         # --- Pass behaviors to flight controller to get actuator commands ---
         actuator_commands = self.robot.control(self.senses, behavior_commands)
 
+        # --- Add noise to actuator commands if enabled ---
+        if self.noise_enabled:
+            noise = np.random.normal(0, self.noise_std, size=3)
+            actuator_commands = actuator_commands + noise
+            # Clamp to valid ranges: thrusts [0, 1], servo [-π, π]
+            actuator_commands[0] = np.clip(actuator_commands[0], 0.0, 1.0)  # left_thrust
+            actuator_commands[1] = np.clip(actuator_commands[1], 0.0, 1.0)  # right_thrust
+            actuator_commands[2] = np.clip(actuator_commands[2], -np.pi, np.pi)  # servo_angle
+
+        # --- Collect action (after noise injection, before applying to MuJoCo) ---
+        if self.collect_data:
+            self._current_action = actuator_commands.copy()
+
         # --- Apply actuator commands to simulation ---
         data.actuator(THRUST_LEFT).ctrl = actuator_commands[0]
         data.actuator(THRUST_RIGHT).ctrl = actuator_commands[1]
-        data.actuator(SERVO).ctrl = actuator_commands[2]
+        data.actuator(SERVO).ctrl = actuator_commands[2] 
 
     def _sense(self):
         """
@@ -118,3 +150,73 @@ class Controller(Protocol):
         self.senses[State.X_ROLL_RATE] = ang_vel[0]
         self.senses[State.Y_PITCH_RATE] = ang_vel[1]
         self.senses[State.Z_YAW_RATE] = ang_vel[2]
+
+    def capture_next_state(self):
+        """
+        Call this after mj_step() to capture the next state.
+        Forms (state, action, next_state) tuple and stores it if data collection is enabled.
+        """
+        if self.collect_data and self._current_state is not None and self._current_action is not None:
+            # Capture next state (after physics step)
+            self._sense()
+            next_state = self.senses.copy()
+            
+            # Store the tuple
+            self.data_buffer.append((
+                self._current_state.copy(),
+                self._current_action.copy(),
+                next_state.copy()
+            ))
+            
+            # Reset for next cycle
+            self._current_state = None
+            self._current_action = None
+
+    def start_data_collection(self):
+        """Enable data collection."""
+        self.collect_data = True
+        self.data_buffer = []
+
+    def stop_data_collection(self):
+        """Disable data collection."""
+        self.collect_data = False
+
+    def get_collected_data(self):
+        """
+        Returns the collected (state, action, next_state) tuples.
+        Returns: List of tuples, each containing (state, action, next_state) as numpy arrays
+        """
+        return self.data_buffer.copy()
+
+    def clear_collected_data(self):
+        """Clear the data buffer."""
+        self.data_buffer = []
+
+    def enable_noise(self, left_thrust_std=0.1, right_thrust_std=0.1, servo_angle_std=0.1, seed=None):
+        """
+        Enable noise injection on actuator commands.
+        
+        Args:
+            left_thrust_std: Standard deviation of noise for left motor thrust (default: 0.1)
+            right_thrust_std: Standard deviation of noise for right motor thrust (default: 0.1)
+            servo_angle_std: Standard deviation of noise for servo angle in radians (default: 0.1)
+            seed: Random seed for reproducibility (None = no seed)
+        """
+        self.noise_enabled = True
+        self.noise_std = np.array([left_thrust_std, right_thrust_std, servo_angle_std])
+        self.noise_seed = seed
+        if seed is not None:
+            np.random.seed(seed)
+        print(f"[NOISE] Enabled with std: left_thrust={left_thrust_std:.3f}, "
+              f"right_thrust={right_thrust_std:.3f}, servo_angle={servo_angle_std:.3f}")
+
+    def disable_noise(self):
+        """Disable noise injection on actuator commands."""
+        self.noise_enabled = False
+        print("[NOISE] Disabled")
+
+    def save_collected_data(self, filename):
+        """Save the collected data to a file."""
+        with open(filename, 'wb') as f:
+            pickle.dump(self.data_buffer, f)
+        print(f"Saved {len(self.data_buffer)} data tuples to {filename}")

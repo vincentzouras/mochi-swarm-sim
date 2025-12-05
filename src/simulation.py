@@ -14,59 +14,65 @@ ASSEMBLY = "assembly"
 
 class Simulation:
 
-    def __init__(self, model, data, controller):
+    def __init__(self, model, data, controller, headless=False):
         self.model = model
         self.data = data
         self.controller = controller
-        self.cam = mj.MjvCamera()
-        self.opt = mj.MjvOption()
-        self.camera_follow = True
-
+        self.headless = headless
+        
         # Trajectory recording (world XYZ of main body)
         self._assembly_id = self.model.body(ASSEMBLY).id
         self.traj_x = []
         self.traj_y = []
         self.traj_z = []
 
-        # --- GLFW and MuJoCo Visualization Init ---
-        glfw.init()
-        glfw.window_hint(glfw.MAXIMIZED, glfw.TRUE)
-        monitor = glfw.get_primary_monitor()
-        mode = glfw.get_video_mode(monitor)
-        self.window = glfw.create_window(
-            mode.size.width, mode.size.height, "Mochi Simulation", None, None
-        )
-        glfw.make_context_current(self.window)
-        glfw.swap_interval(1)
+        if not headless:
+            # --- GUI Mode: GLFW and MuJoCo Visualization Init ---
+            self.cam = mj.MjvCamera()
+            self.opt = mj.MjvOption()
+            self.camera_follow = True
 
-        mj.mjv_defaultCamera(self.cam)
-        mj.mjv_defaultOption(self.opt)
-        self.cam.distance = 20.0
-        self.cam.azimuth = 60
-        self.cam.elevation = -20
+            glfw.init()
+            glfw.window_hint(glfw.MAXIMIZED, glfw.TRUE)
+            monitor = glfw.get_primary_monitor()
+            mode = glfw.get_video_mode(monitor)
+            self.window = glfw.create_window(
+                mode.size.width, mode.size.height, "Mochi Simulation", None, None
+            )
+            glfw.make_context_current(self.window)
+            glfw.swap_interval(1)
 
-        self.scene_main = mj.MjvScene(self.model, maxgeom=10000)
-        self.scene_pip = mj.MjvScene(self.model, maxgeom=10000)
-        self.context = mj.MjrContext(self.model, mj.mjtFontScale.mjFONTSCALE_150.value)
+            mj.mjv_defaultCamera(self.cam)
+            mj.mjv_defaultOption(self.opt)
+            self.cam.distance = 20.0
+            self.cam.azimuth = 60
+            self.cam.elevation = -20
 
-        # --- PiP Camera Setup ---
-        self.pip_cam = mj.MjvCamera()
-        self.pip_cam.type = mj.mjtCamera.mjCAMERA_FIXED
-        self.pip_cam.fixedcamid = self.model.camera(CAMERA).id
+            self.scene_main = mj.MjvScene(self.model, maxgeom=10000)
+            self.scene_pip = mj.MjvScene(self.model, maxgeom=10000)
+            self.context = mj.MjrContext(self.model, mj.mjtFontScale.mjFONTSCALE_150.value)
 
-        # --- Input State Variables ---
-        self.button_left = False
-        self.button_middle = False
-        self.button_right = False
-        self.lastx = 0
-        self.lasty = 0
+            # --- PiP Camera Setup ---
+            self.pip_cam = mj.MjvCamera()
+            self.pip_cam.type = mj.mjtCamera.mjCAMERA_FIXED
+            self.pip_cam.fixedcamid = self.model.camera(CAMERA).id
 
-        # --- Set Callbacks ---
-        # We pass instance methods to GLFW
-        glfw.set_key_callback(self.window, self._keyboard_callback)
-        glfw.set_cursor_pos_callback(self.window, self._mouse_move_callback)
-        glfw.set_mouse_button_callback(self.window, self._mouse_button_callback)
-        glfw.set_scroll_callback(self.window, self._scroll_callback)
+            # --- Input State Variables ---
+            self.button_left = False
+            self.button_middle = False
+            self.button_right = False
+            self.lastx = 0
+            self.lasty = 0
+
+            # --- Set Callbacks ---
+            # We pass instance methods to GLFW
+            glfw.set_key_callback(self.window, self._keyboard_callback)
+            glfw.set_cursor_pos_callback(self.window, self._mouse_move_callback)
+            glfw.set_mouse_button_callback(self.window, self._mouse_button_callback)
+            glfw.set_scroll_callback(self.window, self._scroll_callback)
+        else:
+            # Headless mode: no window needed
+            self.window = None
 
         # Set the MuJoCo control callback to the controller's method
         mj.set_mjcb_control(self.controller.control_step)
@@ -228,12 +234,58 @@ class Simulation:
             self.context,
         )
 
-    def run(self):
-        """Starts the main simulation loop."""
+    def run(self, duration=None, max_steps=None):
+        """
+        Starts the main simulation loop.
+        
+        Args:
+            duration: Run for this many seconds (None = run until window closes or interrupted)
+            max_steps: Maximum number of physics steps (None = unlimited)
+        """
+        if self.headless:
+            self._run_headless(duration, max_steps)
+        else:
+            self._run_gui()
+    
+    def _run_headless(self, duration=None, max_steps=None):
+        """Headless simulation loop - no rendering, just physics."""
+        start_time = self.data.time
+        step_count = 0
+        
+        try:
+            while True:
+                # Check duration limit
+                if duration is not None and (self.data.time - start_time) >= duration:
+                    break
+                
+                # Check step limit
+                if max_steps is not None and step_count >= max_steps:
+                    break
+                
+                # Run physics step
+                mj.mj_step(self.model, self.data)
+                step_count += 1
+                
+                # Capture next state after physics step for data collection
+                self.controller.capture_next_state()
+                
+                # Record trajectory point
+                pos = self.data.xpos[self._assembly_id]
+                self.traj_x.append(float(pos[0]))
+                self.traj_y.append(float(pos[1]))
+                self.traj_z.append(float(pos[2]))
+                
+        except KeyboardInterrupt:
+            print("\n[INTERRUPTED] Headless simulation stopped by user (Ctrl+C)")
+    
+    def _run_gui(self):
+        """GUI simulation loop with rendering."""
         while not glfw.window_should_close(self.window):
             time_prev = self.data.time
             while self.data.time - time_prev < 1.0 / 60.0:
                 mj.mj_step(self.model, self.data)
+                # Capture next state after physics step for data collection
+                self.controller.capture_next_state()
 
             # Record trajectory point once per rendered frame
             pos = self.data.xpos[self._assembly_id]
@@ -251,13 +303,14 @@ class Simulation:
         self.stop()
 
     def stop(self):
-        glfw.terminate()
-        try:
-            if len(self.traj_x) > 1:
-                self._plot_3d_trajectory()
-                self._plot_xy_trajectory()
-        except Exception as e:
-            print(f"Trajectory plotting skipped ({e})")
+        if not self.headless:
+            glfw.terminate()
+            try:
+                if len(self.traj_x) > 1:
+                    self._plot_3d_trajectory()
+                    self._plot_xy_trajectory()
+            except Exception as e:
+                print(f"Trajectory plotting skipped ({e})")
 
     def _plot_3d_trajectory(self):
         """Render a 3D plot of the recorded trajectory."""
