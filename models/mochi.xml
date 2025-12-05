@@ -25,83 +25,8 @@
         <geom name="wall_left" type="box" pos="0 -10 7.5" size="20 0.05 7.5" rgba="1 1 1 0.01" />
         <geom name="wall_right" type="box" pos="0 10 7.5" size="20 0.05 7.5" rgba="1 1 1 0.01" />
       </body> -->
-      <body name="goals_yellow">
-        <!-- <geom name="goal_yellow_circle" type="mesh" mesh="goal_circle" pos="15 5 10" euler="0 0
-        90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_circle">
-          <geom type="box" fromto="15 6.0 10 15 5.866 10.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.866 10.5 15 5.5 10.866" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.5 10.866 15 5.0 11.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.0 11.0 15 4.5 10.866" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.5 10.866 15 4.134 10.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.134 10.5 15 4.0 10.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.0 10.0 15 4.134 9.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.134 9.5 15 4.5 9.134" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.5 9.134 15 5.0 9.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.0 9.0 15 5.5 9.134" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.5 9.134 15 5.866 9.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.866 9.5 15 6.0 10.0" size="0.05" rgba="1 1 0 1" />
-        </body>
 
-        <!-- <geom name="goal_yellow_square" type="mesh" mesh="goal_square" pos="12 0 10" euler="0 0
-        90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_square">
-          <geom type="box" fromto="12 -1 11 12 1 11" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 1 11 12 1 9" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 1 9 12 -1 9" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 -1 9 12 -1 11" size="0.05" rgba="1 1 0 1" />
-        </body>
 
-        <!-- <geom name="goal_yellow_triangle" type="mesh" mesh="goal_triangle" pos="15 -5 10"
-          euler="0 0 90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_triangle">
-          <geom type="box" fromto="15 -6 10.577 15 -4 10.577" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 -4 10.577 15 -5 8.6" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 -5 8.6 15 -6 10.577" size="0.05" rgba="1 1 0 1" />
-        </body>
-      </body>
-
-      <body name="goals_orange">
-        <!-- <geom name="goal_orange_circle" type="mesh" mesh="goal_circle" pos="-15 5 10" euler="0
-        0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_circle">
-          <geom type="box" fromto="-15 6.0 10 -15 5.866 10.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.866 10.5 -15 5.5 10.866" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.5 10.866 -15 5.0 11.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.0 11.0 -15 4.5 10.866" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.5 10.866 -15 4.134 10.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.134 10.5 -15 4.0 10.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.0 10.0 -15 4.134 9.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.134 9.5 -15 4.5 9.134" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.5 9.134 -15 5.0 9.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.0 9.0 -15 5.5 9.134" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.5 9.134 -15 5.866 9.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.866 9.5 -15 6.0 10.0" size="0.05" rgba="1 .5 0 1" />
-        </body>
-
-        <!-- <geom name="goal_orange_square" type="mesh" mesh="goal_square" pos="-12 0 10" euler="0
-        0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_square">
-          <geom type="box" fromto="-12 -1 11 -12 1 11" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 1 11 -12 1 9" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 1 9 -12 -1 9" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 -1 9 -12 -1 11" size="0.05" rgba="1 .5 0 1" />
-        </body>
-
-        <!-- <geom name="goal_orange_triangle" type="mesh" mesh="goal_triangle" pos="-15 -5 10"
-          euler="0 0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_triangle">
-          <geom type="box" fromto="-15 -6 10.577 -15 -4 10.577" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 -4 10.577 -15 -5 8.6" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 -5 8.6 -15 -6 10.577" size="0.05" rgba="1 .5 0 1" />
-        </body>
-      </body>
     </body>
 
     <body name="blimp" pos="0 0 1" gravcomp="3.2872"> <!-- buoyant force (unitless)-->
@@ -128,7 +53,7 @@
         <site name="camera_site" size="0.01" rgba="1 0 1 1" pos="0 0 -.07" />
 
         <site name="imu_site" />
-        <site name="ultrasonic_site" size="0.01" pos=".1 0 -.07" euler="90 90 0" />
+        <!-- <site name="ultrasonic_site" size="0.01" pos=".1 0 -.07" euler="90 90 0" /> -->
       </body>
     </body>
   </worldbody>
@@ -144,7 +69,7 @@
   </actuator>
 
   <sensor>
-    <rangefinder name="ultrasonic" site="ultrasonic_site" />
+    <!-- <rangefinder name="ultrasonic" site="ultrasonic_site" /> -->
     <framepos name="imu_pos" objtype="site" objname="imu_site" />
     <framelinvel name="imu_lin_vel" objtype="site" objname="imu_site" />
     <frameangvel name="imu_ang_vel" objtype="site" objname="imu_site" />
