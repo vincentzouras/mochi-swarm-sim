@@ -15,18 +15,27 @@ BODY_MAIN = "blimp"
 JOINT_SERVO = "motors_axle"
 
 
-# --- Camera Control ---
-class CameraController:
+# --- Interaction Control ---
+class InteractionController:
     def __init__(self, model, cam, scene):
         self.model = model
         self.cam = cam
         self.scene = scene
+
+        # Camera State
         self.lastx = 0
         self.lasty = 0
         self.button_left = False
         self.button_middle = False
         self.button_right = False
+
+        # Playback State
         self.tracking = False
+        self.paused = False
+        self.playback_speed = 1.0
+        self.sim_time = 0.0  # Current time in the replay
+        self.min_time = 0.0  # Start time of log
+        self.max_time = 0.0  # End time of log
 
     def mouse_button(self, window, button, act, mods):
         self.button_left = (
@@ -85,9 +94,33 @@ class CameraController:
         )
 
     def key_callback(self, window, key, scancode, act, mods):
-        if act == glfw.PRESS and key == glfw.KEY_SPACE:
+        if act != glfw.PRESS and act != glfw.REPEAT:
+            return
+
+        # Playback Controls
+        if key == glfw.KEY_SPACE and act == glfw.PRESS:
+            self.paused = not self.paused
+
+        elif key == glfw.KEY_T and act == glfw.PRESS:
             self.tracking = not self.tracking
-            print(f"Camera Tracking: {'ON' if self.tracking else 'OFF'}")
+
+        elif key == glfw.KEY_R and act == glfw.PRESS:
+            self.sim_time = self.min_time
+
+        elif key == glfw.KEY_RIGHT:
+            self.sim_time += 1.0  # Jump forward 1s
+
+        elif key == glfw.KEY_LEFT:
+            self.sim_time -= 1.0  # Jump back 1s
+
+        elif key == glfw.KEY_UP:
+            self.playback_speed += 0.25
+
+        elif key == glfw.KEY_DOWN:
+            self.playback_speed = max(0.25, self.playback_speed - 0.25)
+
+        # Clamp time immediately so we don't seek out of bounds
+        self.sim_time = max(self.min_time, min(self.sim_time, self.max_time))
 
 
 # --- Math Helper ---
@@ -110,7 +143,6 @@ def load_csv_data(filepath):
     try:
         with open(filepath, "r") as f:
             reader = csv.DictReader(f)
-            # Strip whitespace from headers
             reader.fieldnames = [name.strip() for name in reader.fieldnames]
 
             for row in reader:
@@ -122,14 +154,13 @@ def load_csv_data(filepath):
                         float(row["pos_z"]),
                     ]
 
-                    # Angles (radians?)
                     pitch = float(row["pitch"])
                     roll = float(row["roll"])
                     yaw = float(row["yaw"])
+                    yaw -= math.pi / 2 * 3  # your existing rotation fix
                     quat = euler_to_quaternion(roll, pitch, yaw)
 
-                    # Servo Angle (in degrees, need to convert to radians)
-                    servo_deg = float(row.get("servo_angle", 0.0))
+                    servo_deg = float(row.get("servo_angle", 0.0)) - 90.0
                     servo_rad = math.radians(servo_deg)
 
                     data_points.append(
@@ -147,26 +178,19 @@ def main():
     model = mj.MjModel.from_xml_path(MODEL_XML_PATH)
     data = mj.MjData(model)
 
-    # --- FIND JOINT ADDRESSES ---
-    # A. Find the Main Body Free Joint (Position/Rotation)
+    # Find Joints
     body_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, BODY_MAIN)
-    if body_id == -1:
-        print(f"Error: Body '{BODY_MAIN}' not found.")
-        return
-    jnt_adr = model.body_jntadr[body_id]
-    qpos_main_adr = model.jnt_qposadr[jnt_adr]
+    jnt_adr = model.body_jntadr[body_id] if body_id != -1 else -1
+    qpos_main_adr = model.jnt_qposadr[jnt_adr] if jnt_adr != -1 else 0
 
-    # B. Find the Servo Joint (Motor Tilt)
     servo_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, JOINT_SERVO)
-    if servo_id == -1:
-        print(f"Warning: Joint '{JOINT_SERVO}' not found. Servo will not move.")
-        qpos_servo_adr = -1
-    else:
-        qpos_servo_adr = model.jnt_qposadr[servo_id]
+    qpos_servo_adr = model.jnt_qposadr[servo_id] if servo_id != -1 else -1
 
     # 2. Setup Window
     glfw.init()
-    window = glfw.create_window(1200, 900, "Mochi Replay", None, None)
+    window = glfw.create_window(
+        1200, 900, "Mochi Replay (Space=Pause, T=Track, Arrows=Seek/Speed)", None, None
+    )
     glfw.make_context_current(window)
     glfw.swap_interval(1)
 
@@ -184,7 +208,7 @@ def main():
     context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 
     # 4. Attach Controls
-    ctrl = CameraController(model, cam, scene)
+    ctrl = InteractionController(model, cam, scene)
     glfw.set_cursor_pos_callback(window, ctrl.mouse_move)
     glfw.set_mouse_button_callback(window, ctrl.mouse_button)
     glfw.set_scroll_callback(window, ctrl.scroll)
@@ -196,37 +220,49 @@ def main():
         print("No valid data loaded.")
         return
 
+    # Initialize playback state
+    ctrl.min_time = flight_log[0]["time"]
+    ctrl.max_time = flight_log[-1]["time"]
+    ctrl.sim_time = ctrl.min_time
+
+    last_render_time = time.time()
     idx = 0
-    start_real_time = time.time()
-    start_log_time = flight_log[0]["time"]
 
     while not glfw.window_should_close(window):
-        # Loop playback
-        if idx >= len(flight_log):
-            idx = 0
-            start_real_time = time.time()
+        # Calculate Delta Time (wall clock)
+        now = time.time()
+        dt = now - last_render_time
+        last_render_time = now
 
-        # Sync time
-        elapsed = time.time() - start_real_time
+        # Advance Simulation Time (if not paused)
+        if not ctrl.paused:
+            ctrl.sim_time += dt * ctrl.playback_speed
+
+        # Loop Check
+        if ctrl.sim_time > ctrl.max_time:
+            ctrl.sim_time = ctrl.min_time  # Loop to start
+            idx = 0  # Hint to reset search
+
+        # Clamp bounds (in case seek went out of bounds)
+        ctrl.sim_time = max(ctrl.min_time, min(ctrl.sim_time, ctrl.max_time))
+
+        # Find the correct index for the current sim_time
+        # (Linear scan is fast enough for playback)
         while (
-            idx < len(flight_log) - 1
-            and (flight_log[idx]["time"] - start_log_time) < elapsed
+            idx < len(flight_log) - 1 and flight_log[idx + 1]["time"] <= ctrl.sim_time
         ):
             idx += 1
+        while idx > 0 and flight_log[idx]["time"] > ctrl.sim_time:
+            idx -= 1
 
         point = flight_log[idx]
 
         # --- UPDATE PHYSICS STATE ---
-
-        # 1. Update Main Body (Pos + Quat)
         data.qpos[qpos_main_adr : qpos_main_adr + 3] = point["pos"]
         data.qpos[qpos_main_adr + 3 : qpos_main_adr + 7] = point["quat"]
-
-        # 2. Update Servo Angle
         if qpos_servo_adr != -1:
             data.qpos[qpos_servo_adr] = point["servo"]
 
-        # 3. Propagate changes to geometry
         mj.mj_forward(model, data)
 
         # --- UPDATE CAMERA ---
@@ -240,12 +276,15 @@ def main():
         )
         mj.mjr_render(viewport, scene, context)
 
-        # Overlay
+        # Info Overlay
         servo_deg = math.degrees(point["servo"])
+        status = "PAUSED" if ctrl.paused else f"PLAYING ({ctrl.playback_speed}x)"
         info = (
+            f"{status}\n"
             f"Time: {point['time']:.2f}s\n"
             f"Servo: {servo_deg:.1f} deg\n"
-            f"Track: {'ON' if ctrl.tracking else 'OFF'}"
+            f"Track: {'ON' if ctrl.tracking else 'OFF'}\n"
+            f"[Space]: Pause, [T]: Track, [Arrows]: Seek/Speed"
         )
 
         mj.mjr_overlay(
