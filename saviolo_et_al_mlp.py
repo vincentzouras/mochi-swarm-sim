@@ -16,7 +16,7 @@ class DiscreteQuadDynamicsNN(nn.Module):
     def __init__(self, in_dim: int = 12, hidden=(128, 64, 64), out_dim: int = 9):
         super().__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # print(self.device)
+        # print(self.device)s
         h1, h2, h3 = hidden
         self.fc1 = nn.Linear(in_dim, h1)
         self.fc2 = nn.Linear(h1, h2)
