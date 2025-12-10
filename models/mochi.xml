@@ -6,9 +6,13 @@
 
   <asset>
     <texture type="skybox" builtin="gradient" rgb1=".4 .6 .8" rgb2="0 0 0" width="800" height="800" />
+    <texture name="floor_texture" type="2d" builtin="checker" rgb1=".95 .95 .95" rgb2=".7 .7 .7"
+      width="1024" height="1024" />
     <material name="balloon_mat" specular="2" shininess=".2" reflectance="0.8" rgba="0.1 0.5 0.9 1" />
     <material name="frame_mat" rgba="0.2 0.2 0.2 1" />
     <material name="motors_mat" rgba="0.8 0.2 0.2 1" />
+    <material name="floor_mat" texture="floor_texture" texrepeat="20 20" specular="0.2"
+      shininess="0.05" />
     <mesh name="frame_mesh" file="frame.stl" />
     <mesh name="motors_mesh" file="motors.stl" />
   </asset>
@@ -16,92 +20,34 @@
   <worldbody>
     <light directional="true" pos="0 0 10" dir="0 0 -1" />
 
+    <body name="target_fl" gravcomp="7.2" pos="3 3 1">
+      <freejoint />
+      <geom name="target_fl" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <site name="target_fl" />
+    </body>
+    <body name="target_fr" gravcomp="7.2" pos="3 -3 1">
+      <freejoint />
+      <geom name="target_fr" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <site name="target_fr" />
+    </body>
+    <body name="target_bl" gravcomp="7.2" pos="-3 3 1">
+      <freejoint />
+      <geom name="target_bl" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <site name="target_bl" />
+    </body>
+    <body name="target_br" gravcomp="7.2" pos="-3 -3 1">
+      <freejoint />
+      <geom name="target_br" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <site name="target_br" />
+    </body>
+
+
     <body name="environment">
-      <geom name="floor" type="plane" size="20 10 0.1" rgba=".8 .7 .5 1" />
-      <!-- <body name="walls">
-        <geom name="ceiling" type="box" pos="0 0 15" size="20 10 0.05" rgba="1 1 1 0.01" />
-        <geom name="wall_back" type="box" pos="-20 0 7.5" size="0.05 10 7.5" rgba="1 1 1 0.01" />
-        <geom name="wall_front" type="box" pos="20 0 7.5" size="0.05 10 7.5" rgba="1 1 1 0.01" />
-        <geom name="wall_left" type="box" pos="0 -10 7.5" size="20 0.05 7.5" rgba="1 1 1 0.01" />
-        <geom name="wall_right" type="box" pos="0 10 7.5" size="20 0.05 7.5" rgba="1 1 1 0.01" />
-      </body> -->
-      <body name="goals_yellow">
-        <!-- <geom name="goal_yellow_circle" type="mesh" mesh="goal_circle" pos="15 5 10" euler="0 0
-        90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_circle">
-          <geom type="box" fromto="15 6.0 10 15 5.866 10.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.866 10.5 15 5.5 10.866" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.5 10.866 15 5.0 11.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.0 11.0 15 4.5 10.866" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.5 10.866 15 4.134 10.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.134 10.5 15 4.0 10.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.0 10.0 15 4.134 9.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.134 9.5 15 4.5 9.134" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 4.5 9.134 15 5.0 9.0" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.0 9.0 15 5.5 9.134" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.5 9.134 15 5.866 9.5" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 5.866 9.5 15 6.0 10.0" size="0.05" rgba="1 1 0 1" />
-        </body>
-
-        <!-- <geom name="goal_yellow_square" type="mesh" mesh="goal_square" pos="12 0 10" euler="0 0
-        90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_square">
-          <geom type="box" fromto="12 -1 11 12 1 11" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 1 11 12 1 9" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 1 9 12 -1 9" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="12 -1 9 12 -1 11" size="0.05" rgba="1 1 0 1" />
-        </body>
-
-        <!-- <geom name="goal_yellow_triangle" type="mesh" mesh="goal_triangle" pos="15 -5 10"
-          euler="0 0 90"
-          rgba="1 1 0 1" /> -->
-        <body name="goal_yellow_triangle">
-          <geom type="box" fromto="15 -6 10.577 15 -4 10.577" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 -4 10.577 15 -5 8.6" size="0.05" rgba="1 1 0 1" />
-          <geom type="box" fromto="15 -5 8.6 15 -6 10.577" size="0.05" rgba="1 1 0 1" />
-        </body>
-      </body>
-
-      <body name="goals_orange">
-        <!-- <geom name="goal_orange_circle" type="mesh" mesh="goal_circle" pos="-15 5 10" euler="0
-        0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_circle">
-          <geom type="box" fromto="-15 6.0 10 -15 5.866 10.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.866 10.5 -15 5.5 10.866" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.5 10.866 -15 5.0 11.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.0 11.0 -15 4.5 10.866" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.5 10.866 -15 4.134 10.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.134 10.5 -15 4.0 10.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.0 10.0 -15 4.134 9.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.134 9.5 -15 4.5 9.134" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 4.5 9.134 -15 5.0 9.0" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.0 9.0 -15 5.5 9.134" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.5 9.134 -15 5.866 9.5" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 5.866 9.5 -15 6.0 10.0" size="0.05" rgba="1 .5 0 1" />
-        </body>
-
-        <!-- <geom name="goal_orange_square" type="mesh" mesh="goal_square" pos="-12 0 10" euler="0
-        0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_square">
-          <geom type="box" fromto="-12 -1 11 -12 1 11" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 1 11 -12 1 9" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 1 9 -12 -1 9" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-12 -1 9 -12 -1 11" size="0.05" rgba="1 .5 0 1" />
-        </body>
-
-        <!-- <geom name="goal_orange_triangle" type="mesh" mesh="goal_triangle" pos="-15 -5 10"
-          euler="0 0 90"
-          rgba="1 .5 0 1" /> -->
-        <body name="goal_orange_triangle">
-          <geom type="box" fromto="-15 -6 10.577 -15 -4 10.577" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 -4 10.577 -15 -5 8.6" size="0.05" rgba="1 .5 0 1" />
-          <geom type="box" fromto="-15 -5 8.6 -15 -6 10.577" size="0.05" rgba="1 .5 0 1" />
-        </body>
-      </body>
+      <geom name="floor" type="plane" size="5 5 0.1" material="floor_mat" />
+      <site name="floor_fl_site" pos="3 3 0" size="0.02" />
+      <site name="floor_fr_site" pos="3 -3 0" size="0.02" />
+      <site name="floor_bl_site" pos="-3 3 0" size="0.02" />
+      <site name="floor_br_site" pos="-3 -3 0" size="0.02" />
     </body>
 
     <body name="blimp" pos="0 0 1" gravcomp="3.2872"> <!-- buoyant force (unitless)-->
@@ -128,7 +74,7 @@
         <site name="camera_site" size="0.01" rgba="1 0 1 1" pos="0 0 -.07" />
 
         <site name="imu_site" />
-        <site name="ultrasonic_site" size="0.01" pos=".1 0 -.07" euler="90 90 0" />
+        <!-- <site name="ultrasonic_site" size="0.01" pos=".1 0 -.07" euler="90 90 0" /> -->
       </body>
     </body>
   </worldbody>
@@ -144,10 +90,29 @@
   </actuator>
 
   <sensor>
-    <rangefinder name="ultrasonic" site="ultrasonic_site" />
+    <!-- <rangefinder name="ultrasonic" site="ultrasonic_site" /> -->
     <framepos name="imu_pos" objtype="site" objname="imu_site" />
     <framelinvel name="imu_lin_vel" objtype="site" objname="imu_site" />
     <frameangvel name="imu_ang_vel" objtype="site" objname="imu_site" />
     <framequat name="imu_quat" objtype="site" objname="imu_site" />
   </sensor>
+
+  <tendon>
+    <spatial range="0 1">
+      <site site="target_fl" />
+      <site site="floor_fl_site" />
+    </spatial>
+    <spatial range="0 3">
+      <site site="target_fr" />
+      <site site="floor_fr_site" />
+    </spatial>
+    <spatial range="0 2">
+      <site site="target_bl" />
+      <site site="floor_bl_site" />
+    </spatial>
+    <spatial range="0 4">
+      <site site="target_br" />
+      <site site="floor_br_site" />
+    </spatial>
+  </tendon>
 </mujoco>
