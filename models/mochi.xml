@@ -20,24 +20,28 @@
   <worldbody>
     <light directional="true" pos="0 0 10" dir="0 0 -1" />
 
-    <body name="target_fl" gravcomp="7.2" pos="3 3 1">
+    <body name="target_fl" gravcomp="2" pos="3 3 1">
       <freejoint />
-      <geom name="target_fl" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <geom name="target_fl" type="sphere" size=".12" rgba="1 0.4 0.4 1" material="balloon_mat"
+        density="0.167" />
       <site name="target_fl" />
     </body>
-    <body name="target_fr" gravcomp="7.2" pos="3 -3 1">
+    <body name="target_fr" gravcomp="2" pos="3 -3 1">
       <freejoint />
-      <geom name="target_fr" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <geom name="target_fr" type="sphere" size=".12" rgba="1 0.4 0.4 1" material="balloon_mat"
+        density="0.167" />
       <site name="target_fr" />
     </body>
-    <body name="target_bl" gravcomp="7.2" pos="-3 3 1">
+    <body name="target_bl" gravcomp="2" pos="-3 3 1">
       <freejoint />
-      <geom name="target_bl" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <geom name="target_bl" type="sphere" size=".12" rgba="1 0.4 0.4 1" material="balloon_mat"
+        density="0.167" />
       <site name="target_bl" />
     </body>
-    <body name="target_br" gravcomp="7.2" pos="-3 -3 1">
+    <body name="target_br" gravcomp="2" pos="-3 -3 1">
       <freejoint />
-      <geom name="target_br" type="ellipsoid" size=".12 .12 .13" rgba="1 0.4 0.4 1" />
+      <geom name="target_br" type="sphere" size=".12" rgba="1 0.4 0.4 1" material="balloon_mat"
+        density="0.167" />
       <site name="target_br" />
     </body>
 

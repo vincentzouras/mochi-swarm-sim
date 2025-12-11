@@ -78,6 +78,23 @@ class ExplorationState(RobotState):
         self, sensors: np.ndarray, action_states: dict
     ) -> Tuple[np.ndarray, RobotState]:
 
+        if sensors[State.NICLA_FLAG] == 1:
+            # Target detected
+            from .move_to_goal import MoveToGoal
+
+            # Calculate immediate turn towards target
+            current_yaw = sensors[State.Z_YAW]
+            nicla_x = sensors[State.NICLA_X]
+            x_strength = 2.0
+            des_yaw = (nicla_x - 0.5) * x_strength
+
+            # Return empty targets and the NEW state
+            # Pass the desired target height into MoveToGoal
+            return (
+                np.zeros(Behavior.NUM_PARAMS),
+                MoveToGoal(current_yaw - des_yaw, sensors[State.TARGET_HEIGHT]),
+            )
+
         behavior_targets = np.zeros(Behavior.NUM_PARAMS)
 
         # READY follows ARMED input (or set to 1.0 to always run)
