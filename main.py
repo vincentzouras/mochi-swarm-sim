@@ -67,7 +67,7 @@ def main(headless=False, inject_noise=False, noise_std = [0.0, 0.0, 0.0], durati
             noise_suffix = "_noisy" if controller.noise_enabled else ""
             # filename = f"noisy_training_data_60s/noisy_spiral_{duration}s.pkl"
 
-            filename = f"noisy_training_data/noisy_spiral_{noise_std[0]}_{noise_std[1]}_{noise_std[2]}_{duration}s.pkl"
+            filename = f"noisy_training_data_180_0_05/noisy_spiral_{noise_std[0]}_{noise_std[1]}_{noise_std[2]}_{duration}s.pkl"
             controller.save_collected_data(filename)
             print(f"[DATA COLLECTION] Collected {num_tuples} (state, action, next_state) tuples")
             if controller.noise_enabled:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     
     # To run multiple noise levels in a loop:
     # Create directory before loop
-    os.makedirs("noisy_training_data_60s", exist_ok=True)
+    # os.makedirs("noisy_training_data_60s", exist_ok=True)
     
     total_runs = 6 * 6 * 6  # 216 total runs
     run_count = 0
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                     time.sleep(0.1)
                     
                     main(headless=True, inject_noise=True, 
-                         noise_std=[left_std, right_std, servo_std], duration=60.0)
+                         noise_std=[left_std, right_std, servo_std], duration=180.0)
                     
                     # Clear control callback after run
                     try:
